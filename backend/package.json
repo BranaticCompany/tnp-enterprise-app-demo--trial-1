@@ -13,6 +13,7 @@
     "node": "16.20.0"
   },
   "dependencies": {
+    "aws-sdk": "^2.1360.0",
     "node-pg-migrate": "^6.2.2",
     "pg": "^8.11.0"
   },
