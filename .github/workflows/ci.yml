@@ -1,0 +1,129 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  NODE_VERSION: '16.20.0'
+
+jobs:
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    if: always()
+    
+    strategy:
+      matrix:
+        service: [backend, frontend]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.service }}/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ${{ matrix.service }}
+      
+      - name: Run linting
+        run: |
+          if npm run | grep -q "lint"; then
+            npm run lint
+          else
+            echo "No lint script found, skipping..."
+          fi
+        working-directory: ${{ matrix.service }}
+
+  unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    if: always()
+    needs: lint
+    
+    strategy:
+      matrix:
+        service: [backend, frontend]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.service }}/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ${{ matrix.service }}
+      
+      - name: Run unit tests
+        run: npm test
+        working-directory: ${{ matrix.service }}
+        env:
+          CI: true
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [lint, unit]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Create environment file
+        run: |
+          cp .env.example .env
+          echo "DATABASE_URL=postgresql://postgres:password@localhost:5432/app_db" >> .env
+          echo "MINIO_ENDPOINT=http://localhost:9000" >> .env
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+          echo "NODE_ENV=test" >> .env
+          echo "POSTGRES_PASSWORD=password" >> .env
+      
+      - name: Start services
+        run: docker-compose -f infra/docker-compose.yml up -d
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/app_db
+          MINIO_ENDPOINT: http://localhost:9000
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          NODE_ENV: test
+          POSTGRES_PASSWORD: password
+      
+      - name: Wait for services to be healthy
+        run: |
+          echo "Waiting for services to start..."
+          sleep 30
+          
+          # Wait for PostgreSQL
+          timeout 60 bash -c 'until docker-compose -f infra/docker-compose.yml exec -T postgres pg_isready -U postgres; do sleep 2; done'
+          
+          # Wait for MinIO
+          timeout 60 bash -c 'until curl -f http://localhost:9000/minio/health/live; do sleep 2; done'
+          
+          # Wait for backend health check (when implemented)
+          echo "Services are ready for integration tests"
+      
+      - name: Run integration tests
+        run: |
+          echo "Integration tests placeholder - services are running"
+          # Add actual integration test commands here when implemented
+          docker-compose -f infra/docker-compose.yml ps
+      
+      - name: Cleanup
+        if: always()
+        run: |
+          docker-compose -f infra/docker-compose.yml down -v
+          docker-compose -f infra/docker-compose.yml rm -f
