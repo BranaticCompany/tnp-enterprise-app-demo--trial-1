@@ -14,9 +14,10 @@ function getS3Client() {
     endpoint: process.env.MINIO_ENDPOINT || 'http://localhost:9000',
     accessKeyId: process.env.MINIO_ACCESS_KEY || 'minioadmin',
     secretAccessKey: process.env.MINIO_SECRET_KEY || 'minioadmin',
-    s3ForcePathStyle: true, // Required for MinIO
+    region: process.env.AWS_REGION || 'us-east-1',
+    s3ForcePathStyle: true,
     signatureVersion: 'v4',
-    sslEnabled: process.env.MINIO_USE_SSL === 'true'
+    sslEnabled: (String(process.env.MINIO_USE_SSL || 'false').toLowerCase() === 'true')
   });
 
   return s3Client;
