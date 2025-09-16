@@ -7,6 +7,8 @@ services:
       dockerfile: ../infra/backend.Dockerfile
     ports:
       - "3001:3001"
+    env_file:
+      - ../.env
     environment:
       - NODE_ENV=${NODE_ENV:-development}
       - DATABASE_URL=${DATABASE_URL}
@@ -29,6 +31,8 @@ services:
     build: ../frontend
     ports:
       - "3000:3000"
+    env_file:
+      - ../.env
     environment:
       - REACT_APP_API_URL=http://localhost:3001
     volumes:
