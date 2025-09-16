@@ -5,5 +5,6 @@
   "postgres_version": "14",
   "minio_version": "RELEASE.2024-01-01",
   "jwt_secret_placeholder": "JWT_SECRET",
-  "s3_bucket_placeholder": "RESUME_BUCKET"
+  "s3_bucket_placeholder": "RESUME_BUCKET",
+  "migration_tool": "node-pg-migrate"
 }
