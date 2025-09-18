@@ -1,0 +1,25 @@
+{
+  "overall_statistics": {
+    "average_package": 1200000,
+    "highest_package": 2500000,
+    "total_placements": 45
+  },
+  "package_distribution": [
+    {
+      "package_range": "10-15 LPA",
+      "placement_count": 20
+    },
+    {
+      "package_range": "15-20 LPA",
+      "placement_count": 15
+    },
+    {
+      "package_range": "20-25 LPA",
+      "placement_count": 8
+    },
+    {
+      "package_range": "25+ LPA",
+      "placement_count": 2
+    }
+  ]
+}

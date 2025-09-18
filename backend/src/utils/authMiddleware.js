@@ -21,7 +21,7 @@ const authenticateToken = (req, res, next) => {
 
     // Add user info to request object
     req.user = {
-      id: decoded.sub,
+      id: decoded.sub || decoded.id, // Handle both 'sub' and 'id' fields for compatibility
       role: decoded.role
     };
 

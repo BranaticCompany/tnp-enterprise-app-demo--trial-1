@@ -1,14 +1,29 @@
 require('dotenv').config();
 
 const express = require('express');
+const cors = require('cors');
 const authRoutes = require('./src/routes/auth');
 const profileRoutes = require('./src/routes/profile');
 const companyRoutes = require('./src/routes/company');
 const jobRoutes = require('./src/routes/job');
 const applicationRoutes = require('./src/routes/application');
+const placementRoutes = require('./src/routes/placement');
+const interviewRoutes = require('./src/routes/interview');
+const reportRoutes = require('./src/routes/report');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// CORS Configuration
+app.use(cors({
+  origin: "http://localhost:3000",   // Allow frontend dev server
+  credentials: true,                 // Allow cookies/auth headers
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
+
+// Handle preflight requests
+app.options("*", cors());
 
 // Middleware
 app.use(express.json());
@@ -24,6 +39,9 @@ app.use('/api/v1/profile', profileRoutes);
 app.use('/api/v1/companies', companyRoutes);
 app.use('/api/v1/jobs', jobRoutes);
 app.use('/api/v1/applications', applicationRoutes);
+app.use('/api/v1/placements', placementRoutes);
+app.use('/api/v1/interviews', interviewRoutes);
+app.use('/api/v1/reports', reportRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

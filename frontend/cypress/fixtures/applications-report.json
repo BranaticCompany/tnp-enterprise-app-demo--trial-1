@@ -1,0 +1,30 @@
+{
+  "overall_statistics": {
+    "total_applications": 150,
+    "hired_count": 25,
+    "pending_count": 45,
+    "rejected_count": 80
+  },
+  "applications_by_company": [
+    {
+      "company_name": "Google",
+      "total_applications": 50
+    },
+    {
+      "company_name": "Microsoft",
+      "total_applications": 30
+    },
+    {
+      "company_name": "Amazon",
+      "total_applications": 25
+    },
+    {
+      "company_name": "Meta",
+      "total_applications": 20
+    },
+    {
+      "company_name": "Netflix",
+      "total_applications": 15
+    }
+  ]
+}

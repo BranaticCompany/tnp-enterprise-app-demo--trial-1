@@ -1,0 +1,18 @@
+{
+  "applications": {
+    "total_applications": 5,
+    "shortlisted_count": 2,
+    "pending_count": 2,
+    "rejected_count": 1
+  },
+  "interviews": {
+    "total_interviews": 3,
+    "completed_count": 2,
+    "scheduled_count": 1
+  },
+  "placements": {
+    "total_placements": 1,
+    "accepted_count": 1,
+    "highest_package_offered": 1500000
+  }
+}
