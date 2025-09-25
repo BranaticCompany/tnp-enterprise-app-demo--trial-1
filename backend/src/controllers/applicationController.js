@@ -1,13 +1,31 @@
 const db = require('../utils/database');
 
+// Status normalization function
+const normalizeStatus = (status) => {
+  const statusMap = {
+    'applied': 'applied',
+    'reviewed': 'shortlisted',
+    'round1_qualified': 'shortlisted',
+    'round2_qualified': 'shortlisted',
+    'shortlisted': 'shortlisted',
+    'offered': 'shortlisted',
+    'hired': 'placed',
+    'placed': 'placed',
+    'rejected': 'rejected'
+  };
+  return statusMap[status] || status;
+};
+
 // POST /api/v1/applications - Students apply for a job
 const applyForJob = async (req, res) => {
   try {
-    const { job_id } = req.body;
+    const { job_id, jobId } = req.body;
     const student_id = req.user.id;
 
+    // Accept both job_id and jobId for compatibility
+    const finalJobId = job_id || jobId;
 
-    if (!job_id) {
+    if (!finalJobId) {
       return res.status(400).json({ error: 'Job ID is required' });
     }
 
@@ -17,7 +35,7 @@ const applyForJob = async (req, res) => {
       FROM jobs j
       JOIN companies c ON j.company_id = c.id
       WHERE j.id = $1
-    `, [job_id]);
+    `, [finalJobId]);
 
     if (jobResult.rows.length === 0) {
       return res.status(404).json({ error: 'Job not found' });
@@ -28,9 +46,9 @@ const applyForJob = async (req, res) => {
     // Check if deadline has passed
     const now = new Date();
     const deadline = new Date(job.application_deadline);
-    
+
     if (deadline <= now) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Application deadline has passed',
         deadline: job.application_deadline
       });
@@ -39,12 +57,12 @@ const applyForJob = async (req, res) => {
     // Check for duplicate application
     const existingApplication = await db.query(
       'SELECT id FROM applications WHERE student_id = $1 AND job_id = $2',
-      [student_id, job_id]
+      [student_id, finalJobId]
     );
 
     if (existingApplication.rows.length > 0) {
-      return res.status(409).json({ 
-        error: 'You have already applied for this job' 
+      return res.status(409).json({
+        error: 'You have already applied for this job'
       });
     }
 
@@ -53,7 +71,7 @@ const applyForJob = async (req, res) => {
       INSERT INTO applications (student_id, job_id, status) 
       VALUES ($1, $2, 'applied') 
       RETURNING id, student_id, job_id, status, created_at, updated_at
-    `, [student_id, job_id]);
+    `, [student_id, finalJobId]);
 
     const application = {
       ...result.rows[0],
@@ -80,23 +98,43 @@ const getMyApplications = async (req, res) => {
     const result = await db.query(`
       SELECT 
         a.id,
+        a.job_id,
         a.status,
         a.created_at,
         a.updated_at,
         j.title as job_title,
         j.description as job_description,
+        j.eligibility as job_eligibility,
         j.application_deadline,
+        j.package as job_package,
+        j.type as job_type,
         c.name as company_name,
-        c.website as company_website
+        c.website as company_website,
+        c.description as company_description,
+        -- Count total applications for this job
+        (SELECT COUNT(*) FROM applications WHERE job_id = j.id) as total_applications,
+        -- Include placement data with package priority
+        p.package as placement_package,
+        p.status as placement_status,
+        -- Use placement package if exists, otherwise job package
+        COALESCE(p.package, j.package) as final_package
       FROM applications a
       JOIN jobs j ON a.job_id = j.id
       JOIN companies c ON j.company_id = c.id
+      LEFT JOIN placements p ON a.student_id = p.student_id AND a.job_id = p.job_id
       WHERE a.student_id = $1
       ORDER BY a.created_at DESC
     `, [student_id]);
 
+    // Normalize statuses in the response
+    const normalizedApplications = result.rows.map(app => ({
+      ...app,
+      status: normalizeStatus(app.status),
+      normalized_status: normalizeStatus(app.status)
+    }));
+
     res.status(200).json({
-      applications: result.rows || [],
+      applications: normalizedApplications || [],
       count: result.rowCount || 0
     });
 
@@ -202,12 +240,12 @@ const updateApplicationStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    const validStatuses = ['applied', 'reviewed', 'shortlisted', 'rejected', 'hired'];
-    
+    const validStatuses = ['applied', 'shortlisted', 'placed', 'rejected'];
+
     if (!status || !validStatuses.includes(status)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Invalid status',
-        validStatuses 
+        validStatuses
       });
     }
 

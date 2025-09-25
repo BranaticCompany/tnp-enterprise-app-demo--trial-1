@@ -1,5 +1,21 @@
 const db = require('../utils/database');
 
+// Status normalization function (same as in applicationController)
+const normalizeStatus = (status) => {
+  const statusMap = {
+    'applied': 'applied',
+    'reviewed': 'shortlisted',
+    'round1_qualified': 'shortlisted',
+    'round2_qualified': 'shortlisted',
+    'shortlisted': 'shortlisted',
+    'offered': 'shortlisted',
+    'hired': 'placed',
+    'placed': 'placed',
+    'rejected': 'rejected'
+  };
+  return statusMap[status] || status;
+};
+
 // GET /api/v1/reports/applications - Applications by Job/Company (Admin/Recruiter only)
 const getApplicationsReport = async (req, res) => {
   try {
@@ -256,15 +272,14 @@ const getMyReport = async (req, res) => {
   try {
     const student_id = req.user.id;
 
-    // Student's application summary
+    // Student's application summary with normalized statuses
     const applicationSummary = await db.query(`
       SELECT 
         COUNT(a.id) as total_applications,
-        COUNT(CASE WHEN a.status = 'applied' THEN 1 END) as applied_count,
-        COUNT(CASE WHEN a.status = 'reviewed' THEN 1 END) as reviewed_count,
-        COUNT(CASE WHEN a.status = 'shortlisted' THEN 1 END) as shortlisted_count,
-        COUNT(CASE WHEN a.status = 'rejected' THEN 1 END) as rejected_count,
-        COUNT(CASE WHEN a.status = 'hired' THEN 1 END) as hired_count
+        COUNT(CASE WHEN a.status IN ('applied') THEN 1 END) as applied_count,
+        COUNT(CASE WHEN a.status IN ('reviewed', 'round1_qualified', 'round2_qualified', 'shortlisted', 'offered') THEN 1 END) as shortlisted_count,
+        COUNT(CASE WHEN a.status IN ('placed', 'hired') THEN 1 END) as placed_count,
+        COUNT(CASE WHEN a.status = 'rejected' THEN 1 END) as rejected_count
       FROM applications a
       WHERE a.student_id = $1
     `, [student_id]);

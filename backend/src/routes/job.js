@@ -11,6 +11,9 @@ router.use(authenticateToken);
 router.get('/', jobController.getAllJobs);
 router.get('/:id', jobController.getJobById);
 
+// Recruiter-specific endpoints
+router.get('/recruiter/jobs', requireRole(['recruiter', 'admin']), jobController.getRecruiterJobs);
+
 // Protected endpoints (Recruiter/Admin only)
 router.post('/', requireRole(['recruiter', 'admin']), jobController.createJob);
 router.put('/:id', requireRole(['recruiter', 'admin']), jobController.updateJob);

@@ -116,7 +116,13 @@ const getPlacements = async (req, res) => {
                 p.*,
                 u.email as student_email,
                 j.title as job_title,
-                c.name as company_name
+                j.description as job_description,
+                j.package as job_package,
+                j.type as job_type,
+                j.eligibility as job_eligibility,
+                c.name as company_name,
+                c.website as company_website,
+                c.description as company_description
             FROM placements p
             JOIN users u ON p.student_id = u.id
             JOIN jobs j ON p.job_id = j.id

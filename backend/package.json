@@ -7,7 +7,9 @@
     "start": "node index.js",
     "start:dev": "node index.js",
     "test": "jest --runInBand",
-    "migrate": "node-pg-migrate up"
+    "migrate": "node-pg-migrate up",
+    "seed": "node src/utils/seed.js",
+    "verify-seed": "node src/utils/verify-seed.js"
   },
   "engines": {
     "node": "16.20.0"

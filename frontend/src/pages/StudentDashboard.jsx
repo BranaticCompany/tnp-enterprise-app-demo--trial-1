@@ -1,27 +1,87 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { reportsAPI } from '../api/auth'
+import { applicationsAPI, interviewsAPI, placementsAPI } from '../api/auth'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
+import { formatSalary, formatDate } from '../utils/formatters'
+import { useNavigate } from 'react-router-dom'
 
 const StudentDashboard = () => {
   const { user } = useAuth()
-  const [reports, setReports] = useState(null)
+  const navigate = useNavigate()
+  const [dashboardData, setDashboardData] = useState({
+    applications: [],
+    interviews: [],
+    placements: []
+  })
   const [loading, setLoading] = useState(false)
+  const [stats, setStats] = useState({
+    applications: 0,
+    shortlisted: 0,
+    interviews: 0,
+    placements: 0,
+    highestPackage: 0
+  })
 
-  const loadReports = async () => {
+  // Status normalization function for display
+  const normalizeStatusForDisplay = (status) => {
+    const statusMap = {
+      'reviewed': 'Shortlisted',
+      'round1_qualified': 'Shortlisted',
+      'round2_qualified': 'Shortlisted',
+      'offered': 'Shortlisted',
+      'hired': 'Placed',
+      'applied': 'Applied',
+      'shortlisted': 'Shortlisted',
+      'placed': 'Placed',
+      'rejected': 'Rejected'
+    }
+    return statusMap[status?.toLowerCase()] || status?.charAt(0).toUpperCase() + status?.slice(1)
+  }
+
+  const loadDashboardData = async () => {
     setLoading(true)
     try {
-      const data = await reportsAPI.getMyReport()
-      setReports(data)
+      // Fetch all data in parallel
+      const [applicationsResponse, interviewsResponse, placementsResponse] = await Promise.all([
+        applicationsAPI.getMyApplications().catch(err => ({ applications: [] })),
+        interviewsAPI.getMyInterviews().catch(err => ({ interviews: [] })),
+        placementsAPI.getMyPlacements().catch(err => ({ placements: [] }))
+      ])
+
+      const applications = applicationsResponse.applications || applicationsResponse || []
+      const interviews = interviewsResponse.interviews || interviewsResponse || []
+      const placements = placementsResponse.placements || placementsResponse || []
+
+      setDashboardData({ applications, interviews, placements })
+
+      // Calculate stats
+      const shortlistedCount = applications.filter(app => {
+        const status = (app.normalized_status || app.status || '').toLowerCase()
+        return ['shortlisted', 'reviewed', 'round1_qualified', 'round2_qualified', 'offered'].includes(status)
+      }).length
+
+      const placedCount = placements.filter(p => p.status === 'accepted').length
+      const highestPackage = placements.reduce((max, p) => {
+        const packageValue = p.package || p.salary || 0
+        return Math.max(max, packageValue)
+      }, 0)
+
+      setStats({
+        applications: applications.length,
+        shortlisted: shortlistedCount,
+        interviews: interviews.length,
+        placements: placedCount,
+        highestPackage
+      })
     } catch (error) {
-      console.error('Failed to load reports:', error)
+      console.error('Failed to load dashboard data:', error)
     }
     setLoading(false)
   }
 
   useEffect(() => {
-    loadReports()
+    loadDashboardData()
   }, [])
 
   return (
@@ -44,20 +104,20 @@ const StudentDashboard = () => {
             <span className="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
               Student
             </span>
-            <Button onClick={loadReports} disabled={loading} variant="outline">
+            <Button onClick={loadDashboardData} disabled={loading} variant="outline">
               {loading ? 'Loading...' : 'Refresh Data'}
             </Button>
           </div>
         </div>
       </div>
 
-      {loading && !reports && (
+      {loading && (
         <div className="text-center py-8">
           <p className="text-gray-600">Loading dashboard data...</p>
         </div>
       )}
 
-      {reports && (
+      {!loading && (
         <div className="space-y-6">
           {/* Key Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -67,10 +127,10 @@ const StudentDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {reports.applications?.total_applications || 0}
+                  {stats.applications}
                 </div>
                 <p className="text-xs text-gray-600 mt-1">
-                  {reports.applications?.shortlisted_count || 0} shortlisted
+                  {stats.shortlisted} shortlisted
                 </p>
               </CardContent>
             </Card>
@@ -81,10 +141,10 @@ const StudentDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
-                  {reports.interviews?.total_interviews || 0}
+                  {stats.interviews}
                 </div>
                 <p className="text-xs text-gray-600 mt-1">
-                  {reports.interviews?.completed_count || 0} completed
+                  {dashboardData.interviews.filter(i => i.status === 'completed').length} completed
                 </p>
               </CardContent>
             </Card>
@@ -95,10 +155,10 @@ const StudentDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-purple-600">
-                  {reports.placements?.total_placements || 0}
+                  {stats.placements}
                 </div>
                 <p className="text-xs text-gray-600 mt-1">
-                  {reports.placements?.accepted_count || 0} accepted
+                  {stats.placements} accepted
                 </p>
               </CardContent>
             </Card>
@@ -109,8 +169,8 @@ const StudentDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-orange-600">
-                  {reports.placements?.highest_package_offered 
-                    ? `₹${(reports.placements.highest_package_offered / 100000).toFixed(1)}L`
+                  {stats.highestPackage > 0
+                    ? formatSalary(stats.highestPackage)
                     : 'N/A'
                   }
                 </div>
@@ -127,19 +187,34 @@ const StudentDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Button className="h-20 flex flex-col items-center justify-center space-y-2 bg-green-600 hover:bg-green-700">
+                <Button 
+                  className="h-20 flex flex-col items-center justify-center space-y-2 bg-green-600 hover:bg-green-700"
+                  onClick={() => navigate('/student/jobs')}
+                >
                   <span className="text-lg">🔍</span>
                   <span>Browse Jobs</span>
                 </Button>
-                <Button className="h-20 flex flex-col items-center justify-center space-y-2" variant="outline">
-                  <span className="text-lg">📝</span>
-                  <span>Apply to Job</span>
-                </Button>
-                <Button className="h-20 flex flex-col items-center justify-center space-y-2" variant="outline">
+                <Button 
+                  className="h-20 flex flex-col items-center justify-center space-y-2" 
+                  variant="outline"
+                  onClick={() => navigate('/student/applications')}
+                >
                   <span className="text-lg">📋</span>
-                  <span>View Applications</span>
+                  <span>My Applications</span>
                 </Button>
-                <Button className="h-20 flex flex-col items-center justify-center space-y-2" variant="outline">
+                <Button 
+                  className="h-20 flex flex-col items-center justify-center space-y-2" 
+                  variant="outline"
+                  onClick={() => navigate('/student/placements')}
+                >
+                  <span className="text-lg">🎯</span>
+                  <span>My Placements</span>
+                </Button>
+                <Button 
+                  className="h-20 flex flex-col items-center justify-center space-y-2" 
+                  variant="outline"
+                  onClick={() => navigate('/student/profile')}
+                >
                   <span className="text-lg">👤</span>
                   <span>Update Profile</span>
                 </Button>
@@ -147,92 +222,137 @@ const StudentDashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Application Status & Upcoming Events */}
+          {/* Application Status & Recent Activity */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Application Status</CardTitle>
-                <CardDescription>Track your application progress</CardDescription>
+                <CardTitle>Recent Applications</CardTitle>
+                <CardDescription>Your latest job applications</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {[
-                    { company: 'Google', position: 'Software Engineer', status: 'Interview Scheduled', date: 'Tomorrow 2:00 PM' },
-                    { company: 'Microsoft', position: 'Frontend Developer', status: 'Under Review', date: 'Applied 3 days ago' },
-                    { company: 'Amazon', position: 'Full Stack Developer', status: 'Shortlisted', date: 'Applied 1 week ago' },
-                    { company: 'Meta', position: 'Backend Developer', status: 'Applied', date: 'Applied 2 weeks ago' },
-                    { company: 'Netflix', position: 'Data Engineer', status: 'Rejected', date: 'Applied 3 weeks ago' }
-                  ].map((application, index) => (
-                    <div key={index} className="flex justify-between items-center p-3 hover:bg-gray-50 rounded border">
-                      <div>
-                        <p className="text-sm font-medium">{application.company}</p>
-                        <p className="text-xs text-gray-600">{application.position}</p>
-                      </div>
-                      <div className="text-right">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          application.status === 'Interview Scheduled' ? 'bg-blue-100 text-blue-800' :
-                          application.status === 'Under Review' ? 'bg-yellow-100 text-yellow-800' :
-                          application.status === 'Shortlisted' ? 'bg-green-100 text-green-800' :
-                          application.status === 'Applied' ? 'bg-gray-100 text-gray-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {application.status}
-                        </span>
-                        <p className="text-xs text-gray-500 mt-1">{application.date}</p>
-                      </div>
+                  {dashboardData.applications.length > 0 ? (
+                    dashboardData.applications
+                      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                      .slice(0, 3)
+                      .map((application, index) => {
+                        const status = (application.normalized_status || application.status || '').toLowerCase()
+                        const getStatusColor = (status) => {
+                          if (['placed', 'hired'].includes(status)) return 'bg-green-100 text-green-800'
+                          if (['shortlisted', 'reviewed', 'round1_qualified', 'round2_qualified', 'offered'].includes(status)) return 'bg-orange-100 text-orange-800'
+                          if (status === 'applied') return 'bg-blue-100 text-blue-800'
+                          if (status === 'rejected') return 'bg-red-100 text-red-800'
+                          return 'bg-gray-100 text-gray-800'
+                        }
+                        
+                        return (
+                          <div key={application.id} className="flex justify-between items-center p-3 hover:bg-gray-50 rounded border">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium">{application.company_name}</p>
+                              <p className="text-xs text-gray-600">{application.job_title}</p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {formatSalary(application.final_package || application.job_package)}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                                {normalizeStatusForDisplay(status)}
+                              </span>
+                              <p className="text-xs text-gray-500 mt-1">
+                                Applied • {formatDate(application.created_at)}
+                              </p>
+                            </div>
+                          </div>
+                        )
+                      })
+                  ) : (
+                    <div className="text-center py-4 text-gray-500">
+                      <p>No applications yet</p>
+                      <p className="text-xs mt-1">Start applying to jobs to see your activity here</p>
+                      <Button 
+                        size="sm" 
+                        className="mt-2" 
+                        onClick={() => navigate('/student/jobs')}
+                      >
+                        Browse Jobs
+                      </Button>
                     </div>
-                  ))}
+                  )}
                 </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Upcoming Events</CardTitle>
-                <CardDescription>Your schedule and important dates</CardDescription>
+                <CardTitle>Upcoming Interviews</CardTitle>
+                <CardDescription>Your scheduled interviews and important dates</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {[
-                    { 
-                      title: 'Google Interview', 
-                      type: 'Technical Interview', 
-                      time: 'Tomorrow, 2:00 PM', 
-                      location: 'Online - Google Meet',
-                      color: 'bg-blue-500'
-                    },
-                    { 
-                      title: 'Career Fair', 
-                      type: 'Networking Event', 
-                      time: 'Friday, 10:00 AM', 
-                      location: 'Main Auditorium',
-                      color: 'bg-green-500'
-                    },
-                    { 
-                      title: 'Resume Workshop', 
-                      type: 'Skill Development', 
-                      time: 'Next Monday, 3:00 PM', 
-                      location: 'Room 201',
-                      color: 'bg-purple-500'
-                    },
-                    { 
-                      title: 'Microsoft Info Session', 
-                      type: 'Company Presentation', 
-                      time: 'Next Wednesday, 4:00 PM', 
-                      location: 'Online - Teams',
-                      color: 'bg-orange-500'
+                  {(() => {
+                    const now = new Date()
+                    const upcomingInterviews = dashboardData.interviews
+                      .filter(interview => {
+                        const interviewDate = new Date(interview.scheduled_at)
+                        return interview.status === 'scheduled' && interviewDate > now
+                      })
+                      .sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at))
+                      .slice(0, 4)
+                    
+                    if (upcomingInterviews.length === 0) {
+                      return (
+                        <div className="text-center py-6 text-gray-500">
+                          <div className="text-4xl mb-2">📅</div>
+                          <p className="font-medium">No upcoming interviews</p>
+                          <p className="text-xs mt-1">Your scheduled interviews will appear here</p>
+                          {dashboardData.interviews.length > 0 && (
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="mt-2" 
+                              onClick={() => navigate('/student/interviews')}
+                            >
+                              View All Interviews
+                            </Button>
+                          )}
+                        </div>
+                      )
                     }
-                  ].map((event, index) => (
-                    <div key={index} className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded border">
-                      <div className={`w-3 h-3 rounded-full ${event.color} mt-1`}></div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{event.title}</p>
-                        <p className="text-xs text-gray-600">{event.type}</p>
-                        <p className="text-xs text-gray-500 mt-1">{event.time}</p>
-                        <p className="text-xs text-gray-500">{event.location}</p>
-                      </div>
-                    </div>
-                  ))}
+                    
+                    return upcomingInterviews.map((interview) => {
+                      const interviewDate = new Date(interview.scheduled_at)
+                      const getInterviewColor = (mode) => {
+                        return mode === 'online' ? 'bg-blue-500' : 'bg-green-500'
+                      }
+                      
+                      return (
+                        <div key={interview.id} className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded border">
+                          <div className={`w-3 h-3 rounded-full ${getInterviewColor(interview.mode)} mt-1`}></div>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">{interview.company_name} Interview</p>
+                            <p className="text-xs text-gray-600">{interview.job_title}</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {interviewDate.toLocaleDateString('en-US', { 
+                                weekday: 'short', 
+                                month: 'short', 
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {interview.mode === 'online' ? 'Online Interview' : interview.location || 'On-site Interview'}
+                            </p>
+                            {interview.job_package && (
+                              <p className="text-xs text-green-600 font-medium mt-1">
+                                {formatSalary(interview.job_package)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })
+                  })()} 
                 </div>
               </CardContent>
             </Card>
@@ -253,22 +373,22 @@ const StudentDashboard = () => {
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div className="bg-green-600 h-2 rounded-full" style={{ width: '85%' }}></div>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{reports.applications?.total_applications || 0}</div>
+                    <div className="text-2xl font-bold text-green-600">{stats.applications}</div>
                     <div className="text-xs text-gray-600">Applications Sent</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">{reports.applications?.shortlisted_count || 0}</div>
+                    <div className="text-2xl font-bold text-orange-600">{stats.shortlisted}</div>
                     <div className="text-xs text-gray-600">Shortlisted</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">{reports.interviews?.total_interviews || 0}</div>
+                    <div className="text-2xl font-bold text-purple-600">{stats.interviews}</div>
                     <div className="text-xs text-gray-600">Interviews</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">{reports.placements?.total_placements || 0}</div>
+                    <div className="text-2xl font-bold text-orange-600">{stats.placements}</div>
                     <div className="text-xs text-gray-600">Offers Received</div>
                   </div>
                 </div>
@@ -278,9 +398,16 @@ const StudentDashboard = () => {
         </div>
       )}
 
-      {!reports && !loading && (
+      {!loading && stats.applications === 0 && stats.interviews === 0 && stats.placements === 0 && (
         <div className="text-center py-8">
-          <p className="text-gray-600">No data available. Click "Refresh Data" to load dashboard.</p>
+          <div className="text-gray-500 mb-4">
+            <div className="text-6xl mb-4">🎯</div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Welcome to your placement journey!</h3>
+            <p className="text-gray-600 mb-4">Start by browsing available jobs and submitting applications</p>
+            <Button onClick={() => navigate('/student/jobs')} className="bg-green-600 hover:bg-green-700">
+              Browse Jobs
+            </Button>
+          </div>
         </div>
       )}
     </div>

@@ -12,6 +12,9 @@ const {
 // Apply authentication middleware to all routes
 router.use(authenticateToken);
 
+// GET /api/v1/placements/me - Students get their own placements
+router.get('/me', requireRole(['student']), getPlacements);
+
 // GET /api/v1/placements - List placements (role-based filtering)
 // Students: only their own placements
 // Recruiters: all placements (can be filtered by company)

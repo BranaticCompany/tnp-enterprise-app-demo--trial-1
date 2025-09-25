@@ -81,4 +81,115 @@ export const reportsAPI = {
   }
 }
 
+export const jobsAPI = {
+  getAllJobs: async () => {
+    const response = await api.get('/api/v1/jobs')
+    return response.data
+  },
+  
+  getRecruiterJobs: async () => {
+    const response = await api.get('/api/v1/jobs/recruiter/jobs')
+    return response.data
+  },
+  
+  createJob: async (jobData) => {
+    const response = await api.post('/api/v1/jobs', jobData)
+    return response.data
+  },
+  
+  getJobById: async (jobId) => {
+    const response = await api.get(`/api/v1/jobs/${jobId}`)
+    return response.data
+  },
+  
+  updateJob: async (jobId, jobData) => {
+    const response = await api.put(`/api/v1/jobs/${jobId}`, jobData)
+    return response.data
+  },
+  
+  deleteJob: async (jobId) => {
+    const response = await api.delete(`/api/v1/jobs/${jobId}`)
+    return response.data
+  }
+}
+
+export const applicationsAPI = {
+  getAllApplications: async (jobId = null) => {
+    const url = jobId ? `/api/v1/applications?jobId=${jobId}` : '/api/v1/applications'
+    const response = await api.get(url)
+    return response.data
+  },
+  
+  getMyApplications: async () => {
+    const response = await api.get('/api/v1/applications/me')
+    return response.data
+  },
+  
+  createApplication: async (applicationData) => {
+    const response = await api.post('/api/v1/applications', applicationData)
+    return response.data
+  },
+  
+  getApplicationById: async (applicationId) => {
+    const response = await api.get(`/api/v1/applications/${applicationId}`)
+    return response.data
+  },
+  
+  updateApplication: async (applicationId, applicationData) => {
+    const response = await api.put(`/api/v1/applications/${applicationId}`, applicationData)
+    return response.data
+  }
+}
+
+export const placementsAPI = {
+  getAllPlacements: async () => {
+    const response = await api.get('/api/v1/placements')
+    return response.data
+  },
+  
+  getMyPlacements: async () => {
+    const response = await api.get('/api/v1/placements/me')
+    return response.data
+  }
+}
+
+export const interviewsAPI = {
+  getAllInterviews: async () => {
+    const response = await api.get('/api/v1/interviews')
+    return response.data
+  },
+  
+  getMyInterviews: async () => {
+    const response = await api.get('/api/v1/interviews/me')
+    return response.data
+  }
+}
+
+export const companiesAPI = {
+  getAllCompanies: async () => {
+    const response = await api.get('/api/v1/companies')
+    return response.data
+  },
+  
+  getCompanyById: async (companyId) => {
+    const response = await api.get(`/api/v1/companies/${companyId}`)
+    return response.data
+  },
+  
+  createCompany: async (companyData) => {
+    const response = await api.post('/api/v1/companies', companyData)
+    return response.data
+  },
+  
+  updateCompany: async (companyId, companyData) => {
+    const response = await api.put(`/api/v1/companies/${companyId}`, companyData)
+    return response.data
+  },
+  
+  deleteCompany: async (companyId) => {
+    const response = await api.delete(`/api/v1/companies/${companyId}`)
+    return response.data
+  }
+}
+
 export default api

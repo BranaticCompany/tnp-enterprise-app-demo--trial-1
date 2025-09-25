@@ -6,11 +6,15 @@ const {
     getInterviews,
     getInterviewById,
     updateInterview,
-    deleteInterview
+    deleteInterview,
+    getMyInterviews
 } = require('../controllers/interviewController');
 
 // Apply authentication middleware to all routes
 router.use(authenticateToken);
+
+// GET /api/v1/interviews/me - Get student's own interviews
+router.get('/me', requireRole(['student']), getMyInterviews);
 
 // GET /api/v1/interviews - List interviews (role-based filtering)
 // Students: only their own interviews

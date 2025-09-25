@@ -107,7 +107,11 @@ const getInterviews = async (req, res) => {
                 i.*,
                 u.email as student_email,
                 j.title as job_title,
+                j.description as job_description,
+                j.package as job_package,
+                j.type as job_type,
                 c.name as company_name,
+                c.website as company_website,
                 a.status as application_status
             FROM interviews i
             JOIN applications a ON i.application_id = a.id
@@ -332,10 +336,44 @@ const deleteInterview = async (req, res) => {
     }
 };
 
+// Get student's own interviews
+const getMyInterviews = async (req, res) => {
+    try {
+        const student_id = req.user.id;
+
+        const result = await pool.query(`
+            SELECT 
+                i.*,
+                j.title as job_title,
+                j.description as job_description,
+                j.package as job_package,
+                j.type as job_type,
+                c.name as company_name,
+                c.website as company_website,
+                a.status as application_status
+            FROM interviews i
+            JOIN applications a ON i.application_id = a.id
+            JOIN jobs j ON a.job_id = j.id
+            JOIN companies c ON i.company_id = c.id
+            WHERE i.student_id = $1
+            ORDER BY i.scheduled_at ASC
+        `, [student_id]);
+
+        res.json({
+            interviews: result.rows || [],
+            total: result.rows.length
+        });
+    } catch (error) {
+        console.error('Error fetching my interviews:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
 module.exports = {
     createInterview,
     getInterviews,
     getInterviewById,
     updateInterview,
-    deleteInterview
+    deleteInterview,
+    getMyInterviews
 };

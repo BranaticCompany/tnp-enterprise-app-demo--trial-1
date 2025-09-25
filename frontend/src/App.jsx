@@ -1,5 +1,6 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Navbar from './components/Navbar'
 import Login from './pages/Login'
@@ -8,6 +9,15 @@ import AdminDashboard from './pages/AdminDashboard'
 import RecruiterDashboard from './pages/RecruiterDashboard'
 import StudentDashboard from './pages/StudentDashboard'
 import AccessDenied from './pages/AccessDenied'
+// Recruiter pages
+import JobsList from './pages/recruiter/JobsList'
+import PostJob from './pages/recruiter/PostJob'
+import ApplicationsList from './pages/recruiter/ApplicationsList'
+// Student pages
+import BrowseJobs from './pages/student/BrowseJobs'
+import MyApplications from './pages/student/MyApplications'
+import MyPlacements from './pages/student/MyPlacements'
+import StudentInterviews from './pages/student/StudentInterviews'
 import './index.css'
 
 const ProtectedRoute = ({ children }) => {
@@ -96,6 +106,23 @@ const AppContent = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {isAuthenticated && <Navbar />}
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            theme: {
+              primary: 'green',
+              secondary: 'black',
+            },
+          },
+        }}
+      />
       <Routes>
         <Route 
           path="/login" 
@@ -165,10 +192,15 @@ const AppContent = () => {
           path="/recruiter/jobs" 
           element={
             <RoleBasedRoute allowedRoles={['recruiter']}>
-              <div className="p-6 max-w-7xl mx-auto">
-                <h1 className="text-2xl font-bold">Job Management</h1>
-                <p className="text-gray-600 mt-2">Create and manage your job postings</p>
-              </div>
+              <JobsList />
+            </RoleBasedRoute>
+          } 
+        />
+        <Route 
+          path="/recruiter/jobs/post" 
+          element={
+            <RoleBasedRoute allowedRoles={['recruiter']}>
+              <PostJob />
             </RoleBasedRoute>
           } 
         />
@@ -176,10 +208,7 @@ const AppContent = () => {
           path="/recruiter/applications" 
           element={
             <RoleBasedRoute allowedRoles={['recruiter']}>
-              <div className="p-6 max-w-7xl mx-auto">
-                <h1 className="text-2xl font-bold">Applications</h1>
-                <p className="text-gray-600 mt-2">Review and manage job applications</p>
-              </div>
+              <ApplicationsList />
             </RoleBasedRoute>
           } 
         />
@@ -208,10 +237,7 @@ const AppContent = () => {
           path="/student/jobs" 
           element={
             <RoleBasedRoute allowedRoles={['student']}>
-              <div className="p-6 max-w-7xl mx-auto">
-                <h1 className="text-2xl font-bold">Available Jobs</h1>
-                <p className="text-gray-600 mt-2">Browse and apply to job opportunities</p>
-              </div>
+              <BrowseJobs />
             </RoleBasedRoute>
           } 
         />
@@ -219,10 +245,7 @@ const AppContent = () => {
           path="/student/applications" 
           element={
             <RoleBasedRoute allowedRoles={['student']}>
-              <div className="p-6 max-w-7xl mx-auto">
-                <h1 className="text-2xl font-bold">My Applications</h1>
-                <p className="text-gray-600 mt-2">Track your job applications</p>
-              </div>
+              <MyApplications />
             </RoleBasedRoute>
           } 
         />
@@ -230,10 +253,7 @@ const AppContent = () => {
           path="/student/interviews" 
           element={
             <RoleBasedRoute allowedRoles={['student']}>
-              <div className="p-6 max-w-7xl mx-auto">
-                <h1 className="text-2xl font-bold">My Interviews</h1>
-                <p className="text-gray-600 mt-2">View your scheduled interviews</p>
-              </div>
+              <StudentInterviews />
             </RoleBasedRoute>
           } 
         />
@@ -241,10 +261,7 @@ const AppContent = () => {
           path="/student/placements" 
           element={
             <RoleBasedRoute allowedRoles={['student']}>
-              <div className="p-6 max-w-7xl mx-auto">
-                <h1 className="text-2xl font-bold">Placements</h1>
-                <p className="text-gray-600 mt-2">View your placement status and offers</p>
-              </div>
+              <MyPlacements />
             </RoleBasedRoute>
           } 
         />
