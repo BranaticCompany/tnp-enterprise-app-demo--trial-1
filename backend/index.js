@@ -10,6 +10,8 @@ const applicationRoutes = require('./src/routes/application');
 const placementRoutes = require('./src/routes/placement');
 const interviewRoutes = require('./src/routes/interview');
 const reportRoutes = require('./src/routes/report');
+const recruiterRoutes = require('./src/routes/recruiter');
+const adminRoutes = require('./src/routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -42,6 +44,8 @@ app.use('/api/v1/applications', applicationRoutes);
 app.use('/api/v1/placements', placementRoutes);
 app.use('/api/v1/interviews', interviewRoutes);
 app.use('/api/v1/reports', reportRoutes);
+app.use('/api/v1/recruiter', recruiterRoutes);
+app.use('/api/v1/admin', adminRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

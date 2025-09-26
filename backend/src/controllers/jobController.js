@@ -46,6 +46,20 @@ const validateJobData = (data) => {
     }
   }
 
+  // Validate skills if provided
+  if (data.skills !== undefined && data.skills !== null) {
+    if (!Array.isArray(data.skills)) {
+      errors.push('Skills must be an array');
+    } else {
+      // Check each skill is a string
+      for (let i = 0; i < data.skills.length; i++) {
+        if (typeof data.skills[i] !== 'string' || data.skills[i].trim().length === 0) {
+          errors.push(`Skill at position ${i + 1} must be a non-empty string`);
+        }
+      }
+    }
+  }
+
   return errors;
 };
 
@@ -69,7 +83,8 @@ exports.getAllJobs = async (req, res) => {
         salary: job.package, // Map package field to salary for frontend compatibility
         jobType: job.type || 'Full Time', // Map type field to jobType for frontend compatibility
         company: job.company_name, // Add company field for frontend compatibility
-        applicationCount: job.application_count || 0 // Add real application count from database
+        applicationCount: job.application_count || 0, // Add real application count from database
+        skills: job.skills || [] // Ensure skills is always an array
       };
     });
 
@@ -104,7 +119,8 @@ exports.getJobById = async (req, res) => {
       ...job,
       salary: job.package, // Map package field to salary for frontend compatibility
       jobType: job.type || 'Full Time', // Map type field to jobType for frontend compatibility
-      company: job.company_name // Add company field for frontend compatibility
+      company: job.company_name, // Add company field for frontend compatibility
+      skills: job.skills || [] // Ensure skills is always an array
     };
 
     res.status(200).json({ job: jobWithExtras });
@@ -117,23 +133,38 @@ exports.getJobById = async (req, res) => {
 // POST /api/v1/jobs - Create new job (Recruiter/Admin only)
 const createJob = async (req, res) => {
   try {
-    const { company_name, title, description, eligibility, application_deadline, package, type, location, cgpa_criteria } = req.body;
+    // Debug logging - log the entire request body
+    console.log('=== CREATE JOB DEBUG ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    
+    const { company_name, title, description, eligibility, application_deadline, package, type, location, cgpa_criteria, skills } = req.body;
+
+    // Debug logging - log extracted skills
+    console.log('Extracted skills:', skills);
+    console.log('Skills type:', typeof skills);
+    console.log('Skills is array:', Array.isArray(skills));
 
     // Validate input data
     const validationErrors = validateJobData(req.body);
     if (validationErrors.length > 0) {
+      console.log('Validation errors:', validationErrors);
       return res.status(400).json({
         error: 'Validation failed',
         details: validationErrors
       });
     }
 
+    // Process skills - ensure it's always a valid JSON string
+    let skillsJson;
+    if (skills && Array.isArray(skills) && skills.length > 0) {
+      skillsJson = JSON.stringify(skills);
+    } else {
+      skillsJson = '[]';
+    }
+    console.log('Skills JSON to store:', skillsJson);
+
     // Create new job with all fields (no company_id validation needed since we use company_name)
-    const result = await db.query(`
-      INSERT INTO jobs (company_name, title, description, eligibility, application_deadline, package, type, location, cgpa_criteria) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
-      RETURNING id, company_name, title, description, eligibility, application_deadline, package, type, location, cgpa_criteria, created_at, updated_at
-    `, [
+    const queryParams = [
       company_name.trim(),
       title.trim(),
       description || null,
@@ -142,10 +173,20 @@ const createJob = async (req, res) => {
       package || null,
       type || 'Full Time',
       location || null,
-      parseFloat(cgpa_criteria)
-    ]);
+      parseFloat(cgpa_criteria),
+      skillsJson
+    ];
+
+    console.log('Query parameters:', queryParams);
+
+    const result = await db.query(`
+      INSERT INTO jobs (company_name, title, description, eligibility, application_deadline, package, type, location, cgpa_criteria, skills) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+      RETURNING id, company_name, title, description, eligibility, application_deadline, package, type, location, cgpa_criteria, skills, created_at, updated_at
+    `, queryParams);
 
     const jobData = result.rows[0];
+    console.log('Job created successfully:', jobData.id);
 
     res.status(201).json({
       message: 'Job created successfully',
@@ -153,7 +194,13 @@ const createJob = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Create job error:', error);
+    console.error('=== CREATE JOB ERROR ===');
+    console.error('Full error object:', error);
+    console.error('Error message:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Error detail:', error.detail);
+    console.error('Error hint:', error.hint);
+    console.error('Error stack:', error.stack);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -162,7 +209,7 @@ const createJob = async (req, res) => {
 const updateJob = async (req, res) => {
   try {
     const { id } = req.params;
-    const { company_name, title, description, eligibility, application_deadline, package, type, location, cgpa_criteria } = req.body;
+    const { company_name, title, description, eligibility, application_deadline, package, type, location, cgpa_criteria, skills } = req.body;
 
     // Validate input data
     const validationErrors = validateJobData(req.body);
@@ -183,12 +230,20 @@ const updateJob = async (req, res) => {
       return res.status(404).json({ error: 'Job not found' });
     }
 
+    // Process skills - ensure it's always a valid JSON string
+    let skillsJson;
+    if (skills && Array.isArray(skills) && skills.length > 0) {
+      skillsJson = JSON.stringify(skills);
+    } else {
+      skillsJson = '[]';
+    }
+
     // Update job with new schema
     const result = await db.query(`
       UPDATE jobs 
-      SET company_name = $2, title = $3, description = $4, eligibility = $5, application_deadline = $6, package = $7, type = $8, location = $9, cgpa_criteria = $10, updated_at = NOW() 
+      SET company_name = $2, title = $3, description = $4, eligibility = $5, application_deadline = $6, package = $7, type = $8, location = $9, cgpa_criteria = $10, skills = $11, updated_at = NOW() 
       WHERE id = $1 
-      RETURNING id, company_name, title, description, eligibility, application_deadline, package, type, location, cgpa_criteria, created_at, updated_at
+      RETURNING id, company_name, title, description, eligibility, application_deadline, package, type, location, cgpa_criteria, skills, created_at, updated_at
     `, [
       id,
       company_name.trim(),
@@ -199,7 +254,8 @@ const updateJob = async (req, res) => {
       package || null,
       type || 'Full Time',
       location || null,
-      parseFloat(cgpa_criteria)
+      parseFloat(cgpa_criteria),
+      skillsJson
     ]);
 
     const jobData = result.rows[0];
@@ -220,14 +276,11 @@ const deleteJob = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Check if job exists and get details (support both old and new schema)
+    // Check if job exists and get details
     const existingJob = await db.query(`
-      SELECT 
-        j.id, 
-        j.title, 
-        COALESCE(j.company_name, c.name) as company_name
+      SELECT j.id, j.title, c.name as company_name
       FROM jobs j
-      LEFT JOIN companies c ON j.company_id = c.id
+      JOIN companies c ON j.company_id = c.id
       WHERE j.id = $1
     `, [id]);
 
@@ -235,7 +288,7 @@ const deleteJob = async (req, res) => {
       return res.status(404).json({ error: 'Job not found' });
     }
 
-    // Delete job (CASCADE will automatically delete related applications)
+    // Delete job
     await db.query('DELETE FROM jobs WHERE id = $1', [id]);
 
     res.status(200).json({
@@ -249,14 +302,6 @@ const deleteJob = async (req, res) => {
 
   } catch (error) {
     console.error('Delete job error:', error);
-    
-    // Handle specific database errors
-    if (error.code === '23503') {
-      return res.status(400).json({ 
-        error: 'Cannot delete job due to existing dependencies. Please remove related data first.' 
-      });
-    }
-    
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -264,8 +309,8 @@ const deleteJob = async (req, res) => {
 // GET /api/v1/jobs/recruiter - Get jobs posted by the current recruiter
 const getRecruiterJobs = async (req, res) => {
   try {
-    // For now, return all jobs since we don't have recruiter-specific filtering yet
-    // In the future, this could filter by recruiter_id or company association
+    // For now, return all jobs since we don't have created_by field yet
+    // TODO: Add created_by field and filter by recruiter
     const result = await db.query(`
       SELECT 
         jobs.*, 
@@ -286,7 +331,8 @@ const getRecruiterJobs = async (req, res) => {
         applicationCount: job.application_count || 0, // Add real application count from database
         deadline: job.application_deadline, // Map deadline field for frontend compatibility
         createdAt: job.created_at, // Map created_at field for frontend compatibility
-        requirements: job.eligibility // Map eligibility to requirements for frontend compatibility
+        requirements: job.eligibility, // Map eligibility to requirements for frontend compatibility
+        skills: job.skills || [] // Ensure skills is always an array
       };
     });
 

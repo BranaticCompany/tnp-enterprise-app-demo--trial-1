@@ -1,31 +1,30 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { reportsAPI } from '../api/auth'
+import { recruiterAPI } from '../api/auth'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
+import { useNavigate } from 'react-router-dom'
 
 const RecruiterDashboard = () => {
   const { user } = useAuth()
-  const [reports, setReports] = useState(null)
+  const navigate = useNavigate()
+  const [dashboardData, setDashboardData] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  const loadReports = async () => {
+  const loadDashboard = async () => {
     setLoading(true)
     try {
-      const [applications, interviews, placements] = await Promise.all([
-        reportsAPI.getApplicationsReport(),
-        reportsAPI.getInterviewsReport(),
-        reportsAPI.getPlacementsReport()
-      ])
-      setReports({ applications, interviews, placements })
+      const data = await recruiterAPI.getDashboard()
+      console.log('Dashboard data loaded:', data)
+      setDashboardData(data)
     } catch (error) {
-      console.error('Failed to load reports:', error)
+      console.error('Failed to load dashboard:', error)
     }
     setLoading(false)
   }
 
   useEffect(() => {
-    loadReports()
+    loadDashboard()
   }, [])
 
   return (
@@ -48,30 +47,30 @@ const RecruiterDashboard = () => {
             <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
               Recruiter
             </span>
-            <Button onClick={loadReports} disabled={loading} variant="outline">
+            <Button onClick={loadDashboard} disabled={loading} variant="outline">
               {loading ? 'Loading...' : 'Refresh Data'}
             </Button>
           </div>
         </div>
       </div>
 
-      {loading && !reports && (
+      {loading && !dashboardData && (
         <div className="text-center py-8">
           <p className="text-gray-600">Loading dashboard data...</p>
         </div>
       )}
 
-      {reports && (
+      {dashboardData && (
         <div className="space-y-6">
           {/* Key Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card className="border-blue-200">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">Active Jobs</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-600">Jobs Posted</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-600">12</div>
-                <p className="text-xs text-gray-600 mt-1">3 new this week</p>
+                <div className="text-2xl font-bold text-blue-600">{dashboardData.jobsPosted}</div>
+                <p className="text-xs text-gray-600 mt-1">Total jobs posted</p>
               </CardContent>
             </Card>
 
@@ -81,10 +80,10 @@ const RecruiterDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {reports.applications?.overall_statistics?.total_applications || 0}
+                  {dashboardData.applicationsReceived}
                 </div>
                 <p className="text-xs text-gray-600 mt-1">
-                  {Math.floor((reports.applications?.overall_statistics?.total_applications || 0) * 0.15)} pending review
+                  For all your jobs
                 </p>
               </CardContent>
             </Card>
@@ -95,23 +94,23 @@ const RecruiterDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-purple-600">
-                  {reports.interviews?.overall_statistics?.total_interviews || 0}
+                  {dashboardData.interviewsScheduled}
                 </div>
                 <p className="text-xs text-gray-600 mt-1">
-                  {Math.floor((reports.interviews?.overall_statistics?.total_interviews || 0) * 0.3)} this week
+                  Total interviews
                 </p>
               </CardContent>
             </Card>
 
             <Card className="border-orange-200">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">Successful Hires</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-600">Offers Made</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-orange-600">
-                  {reports.applications?.overall_statistics?.hired_count || 0}
+                  {dashboardData.offersMade}
                 </div>
-                <p className="text-xs text-gray-600 mt-1">This semester</p>
+                <p className="text-xs text-gray-600 mt-1">{dashboardData.placedCount} placed</p>
               </CardContent>
             </Card>
           </div>
@@ -124,21 +123,36 @@ const RecruiterDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Button className="h-20 flex flex-col items-center justify-center space-y-2 bg-blue-600 hover:bg-blue-700">
+                <Button 
+                  className="h-20 flex flex-col items-center justify-center space-y-2 bg-blue-600 hover:bg-blue-700"
+                  onClick={() => navigate('/recruiter/jobs/post')}
+                >
                   <span className="text-lg">📝</span>
                   <span>Post New Job</span>
                 </Button>
-                <Button className="h-20 flex flex-col items-center justify-center space-y-2" variant="outline">
+                <Button 
+                  className="h-20 flex flex-col items-center justify-center space-y-2" 
+                  variant="outline"
+                  onClick={() => navigate('/recruiter/jobs')}
+                >
                   <span className="text-lg">📋</span>
-                  <span>Review Applications</span>
+                  <span>Manage Jobs</span>
                 </Button>
-                <Button className="h-20 flex flex-col items-center justify-center space-y-2" variant="outline">
+                <Button 
+                  className="h-20 flex flex-col items-center justify-center space-y-2" 
+                  variant="outline"
+                  onClick={() => navigate('/recruiter/applications')}
+                >
                   <span className="text-lg">📅</span>
-                  <span>Schedule Interview</span>
+                  <span>View Applications</span>
                 </Button>
-                <Button className="h-20 flex flex-col items-center justify-center space-y-2" variant="outline">
-                  <span className="text-lg">✅</span>
-                  <span>Make Offer</span>
+                <Button 
+                  className="h-20 flex flex-col items-center justify-center space-y-2" 
+                  variant="outline"
+                  onClick={() => navigate('/recruiter/interviews')}
+                >
+                  <span className="text-lg">💼</span>
+                  <span>Interviews</span>
                 </Button>
               </div>
             </CardContent>
@@ -153,32 +167,106 @@ const RecruiterDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {[
-                    { name: 'John Doe', position: 'Software Engineer', time: '2 hours ago', status: 'New' },
-                    { name: 'Jane Smith', position: 'Data Analyst', time: '4 hours ago', status: 'Reviewed' },
-                    { name: 'Mike Johnson', position: 'Frontend Developer', time: '6 hours ago', status: 'Shortlisted' },
-                    { name: 'Sarah Wilson', position: 'Backend Developer', time: '1 day ago', status: 'Interview Scheduled' },
-                    { name: 'David Brown', position: 'Full Stack Developer', time: '2 days ago', status: 'Offer Made' }
-                  ].map((application, index) => (
-                    <div key={index} className="flex justify-between items-center p-3 hover:bg-gray-50 rounded border">
-                      <div>
-                        <p className="text-sm font-medium">{application.name}</p>
-                        <p className="text-xs text-gray-600">{application.position}</p>
+                  {dashboardData.recentApplications && dashboardData.recentApplications.length > 0 ? (
+                    dashboardData.recentApplications.map((application, index) => (
+                      <div key={index} className="flex justify-between items-center p-3 hover:bg-gray-50 rounded border">
+                        <div>
+                          <p className="text-sm font-medium">{application.student_name}</p>
+                          <p className="text-xs text-gray-600">{application.job_title}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            application.status === 'applied' ? 'bg-blue-100 text-blue-800' :
+                            application.status === 'reviewed' ? 'bg-yellow-100 text-yellow-800' :
+                            application.status === 'shortlisted' ? 'bg-green-100 text-green-800' :
+                            application.status === 'offered' ? 'bg-purple-100 text-purple-800' :
+                            application.status === 'placed' ? 'bg-green-100 text-green-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
+                          </span>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {new Date(application.applied_at).toLocaleDateString()}
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          application.status === 'New' ? 'bg-blue-100 text-blue-800' :
-                          application.status === 'Reviewed' ? 'bg-yellow-100 text-yellow-800' :
-                          application.status === 'Shortlisted' ? 'bg-green-100 text-green-800' :
-                          application.status === 'Interview Scheduled' ? 'bg-purple-100 text-purple-800' :
-                          'bg-orange-100 text-orange-800'
-                        }`}>
-                          {application.status}
-                        </span>
-                        <p className="text-xs text-gray-500 mt-1">{application.time}</p>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4 text-gray-500">
+                      <p>No recent applications</p>
                     </div>
-                  ))}
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Jobs</CardTitle>
+                <CardDescription>Your latest job postings</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {dashboardData.recentJobs && dashboardData.recentJobs.length > 0 ? (
+                    dashboardData.recentJobs.map((job, index) => (
+                      <div key={index} className="flex justify-between items-center p-3 hover:bg-gray-50 rounded border">
+                        <div>
+                          <p className="text-sm font-medium">{job.title}</p>
+                          <p className="text-xs text-gray-600">{job.company_name}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {job.application_count} applications
+                          </span>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {new Date(job.posted_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4 text-gray-500">
+                      <p>No jobs posted yet</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Additional Sections */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Upcoming Interviews</CardTitle>
+                <CardDescription>Next interviews scheduled</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {dashboardData.upcomingInterviews && dashboardData.upcomingInterviews.length > 0 ? (
+                    dashboardData.upcomingInterviews.map((interview, index) => (
+                      <div key={index} className="flex justify-between items-center p-3 hover:bg-gray-50 rounded border">
+                        <div>
+                          <p className="text-sm font-medium">{interview.student_name}</p>
+                          <p className="text-xs text-gray-600">{interview.job_title}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            interview.mode === 'online' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {interview.mode}
+                          </span>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {new Date(interview.date).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4 text-gray-500">
+                      <p>No upcoming interviews</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -191,11 +279,10 @@ const RecruiterDashboard = () => {
               <CardContent>
                 <div className="space-y-4">
                   {[
-                    { stage: 'Applications Received', count: reports.applications?.overall_statistics?.total_applications || 0, color: 'bg-blue-500' },
-                    { stage: 'Under Review', count: Math.floor((reports.applications?.overall_statistics?.total_applications || 0) * 0.6), color: 'bg-yellow-500' },
-                    { stage: 'Shortlisted', count: Math.floor((reports.applications?.overall_statistics?.total_applications || 0) * 0.3), color: 'bg-green-500' },
-                    { stage: 'Interview Scheduled', count: reports.interviews?.overall_statistics?.total_interviews || 0, color: 'bg-purple-500' },
-                    { stage: 'Offers Made', count: reports.applications?.overall_statistics?.hired_count || 0, color: 'bg-orange-500' }
+                    { stage: 'Applications Received', count: dashboardData.applicationsReceived, color: 'bg-blue-500' },
+                    { stage: 'Interviews Scheduled', count: dashboardData.interviewsScheduled, color: 'bg-purple-500' },
+                    { stage: 'Offers Made', count: dashboardData.offersMade, color: 'bg-orange-500' },
+                    { stage: 'Successfully Placed', count: dashboardData.placedCount, color: 'bg-green-500' }
                   ].map((stage, index) => (
                     <div key={index} className="flex items-center space-x-3">
                       <div className={`w-4 h-4 rounded-full ${stage.color}`}></div>
@@ -209,10 +296,26 @@ const RecruiterDashboard = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* Highest Package Card */}
+          {dashboardData.highestPackage > 0 && (
+            <Card className="border-green-200">
+              <CardHeader>
+                <CardTitle className="text-green-800">Highest Package Offered</CardTitle>
+                <CardDescription>Best placement achieved</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-green-600">
+                  ₹{(dashboardData.highestPackage / 100000).toFixed(1)}L
+                </div>
+                <p className="text-sm text-gray-600 mt-1">Per annum</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 
-      {!reports && !loading && (
+      {!dashboardData && !loading && (
         <div className="text-center py-8">
           <p className="text-gray-600">No data available. Click "Refresh Data" to load dashboard.</p>
         </div>

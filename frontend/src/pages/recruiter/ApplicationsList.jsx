@@ -17,6 +17,7 @@ const ApplicationsList = () => {
   const [selectedJob, setSelectedJob] = useState(jobId || '')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [statusFilter, setStatusFilter] = useState('all')
 
   useEffect(() => {
     fetchJobs()
@@ -33,7 +34,7 @@ const ApplicationsList = () => {
 
   const fetchJobs = async () => {
     try {
-      const response = await jobsAPI.getAllJobs()
+      const response = await jobsAPI.getRecruiterJobs()
       const jobsList = response.jobs || response || []
       setJobs(jobsList)
       
@@ -50,12 +51,31 @@ const ApplicationsList = () => {
     try {
       setLoading(true)
       setError(null)
+      console.log('=== FRONTEND: Fetching applications for job ===')
+      console.log('Job ID:', jobId)
+      console.log('API URL will be:', `/api/v1/applications/job/${jobId}`)
+      
       const response = await applicationsAPI.getAllApplications(jobId)
+      console.log('=== FRONTEND: Applications response received ===')
+      console.log('Response status:', response ? 'SUCCESS' : 'EMPTY')
+      console.log('Response structure:', {
+        hasJob: !!response?.job,
+        hasApplications: !!response?.applications,
+        applicationsCount: response?.applications?.length || 0,
+        totalCount: response?.count || 0
+      })
+      
       setApplications(response.applications || response || [])
+      console.log('Applications set in state:', response.applications?.length || 0)
     } catch (err) {
-      console.error('Error fetching applications:', err)
-      setError('Failed to load applications. Please try again.')
-      toast.error('Failed to load applications')
+      console.error('=== FRONTEND: Error fetching applications ===')
+      console.error('Error object:', err)
+      console.error('Error response:', err.response?.data)
+      console.error('Error status:', err.response?.status)
+      
+      const errorMessage = err.response?.data?.error || err.response?.data?.details || 'Failed to load applications. Please try again.'
+      setError(errorMessage)
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -67,15 +87,33 @@ const ApplicationsList = () => {
 
   const handleUpdateApplicationStatus = async (applicationId, newStatus) => {
     try {
-      await applicationsAPI.updateApplication(applicationId, { status: newStatus })
+      const response = await applicationsAPI.updateApplicationStatus(applicationId, { status: newStatus })
       setApplications(applications.map(app => 
         app.id === applicationId ? { ...app, status: newStatus } : app
       ))
-      toast.success(`Application ${newStatus}`)
+      toast.success(`Application ${newStatus} successfully`)
     } catch (err) {
       console.error('Error updating application:', err)
-      toast.error('Failed to update application status')
+      const errorMessage = err.response?.data?.error || 'Failed to update application status'
+      toast.error(errorMessage)
     }
+  }
+
+  // Filter applications based on status
+  const filteredApplications = applications.filter(app => {
+    if (statusFilter === 'all') return true
+    return app.status === statusFilter
+  })
+
+  const getStatusCounts = () => {
+    const counts = {
+      all: applications.length,
+      applied: applications.filter(app => app.status === 'applied').length,
+      shortlisted: applications.filter(app => app.status === 'shortlisted').length,
+      placed: applications.filter(app => app.status === 'placed').length,
+      rejected: applications.filter(app => app.status === 'rejected').length
+    }
+    return counts
   }
 
 
@@ -180,23 +218,53 @@ const ApplicationsList = () => {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-900">
-              Applications ({applications.length})
+              Applications ({filteredApplications.length} of {applications.length})
             </h2>
             <div className="text-sm text-gray-500">
               Job: {jobs.find(job => job.id === selectedJob)?.title}
             </div>
           </div>
 
-          {applications.map((application) => (
+          {/* Status Filter */}
+          <Card className="mb-4">
+            <CardContent className="py-4">
+              <div className="flex items-center space-x-4">
+                <span className="text-sm font-medium text-gray-700">Filter by status:</span>
+                <div className="flex space-x-2">
+                  {[
+                    { key: 'all', label: 'All', count: getStatusCounts().all },
+                    { key: 'applied', label: 'Applied', count: getStatusCounts().applied },
+                    { key: 'shortlisted', label: 'Shortlisted', count: getStatusCounts().shortlisted },
+                    { key: 'placed', label: 'Placed', count: getStatusCounts().placed },
+                    { key: 'rejected', label: 'Rejected', count: getStatusCounts().rejected }
+                  ].map((filter) => (
+                    <button
+                      key={filter.key}
+                      onClick={() => setStatusFilter(filter.key)}
+                      className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                        statusFilter === filter.key
+                          ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {filter.label} ({filter.count})
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {filteredApplications.map((application) => (
             <Card key={application.id} className="hover:shadow-md transition-shadow">
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div>
                     <CardTitle className="text-lg">
-                      {application.studentName || application.student?.name || application.student?.email || 'Student'}
+                      {application.student_name || application.studentName || application.student?.name || 'Student'}
                     </CardTitle>
                     <p className="text-gray-600 mt-1">
-                      {application.student?.email || application.email || 'No email provided'}
+                      {application.student_email || application.student?.email || application.email || 'No email provided'}
                     </p>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -216,27 +284,27 @@ const ApplicationsList = () => {
                     <p className="text-sm text-gray-600 mb-1">
                       <span className="font-medium">Status:</span> {formatStatus(application.status)}
                     </p>
-                    {application.student?.phone && (
+                    {(application.student_phone || application.student?.phone) && (
                       <p className="text-sm text-gray-600">
-                        <span className="font-medium">Phone:</span> {application.student.phone}
+                        <span className="font-medium">Phone:</span> {application.student_phone || application.student?.phone}
                       </p>
                     )}
                   </div>
                   <div>
                     <h4 className="font-medium text-gray-900 mb-2">Student Info</h4>
-                    {application.student?.course && (
+                    {(application.student_branch || application.student?.course) && (
                       <p className="text-sm text-gray-600 mb-1">
-                        <span className="font-medium">Course:</span> {application.student.course}
+                        <span className="font-medium">Branch:</span> {application.student_branch || application.student?.course}
                       </p>
                     )}
-                    {application.student?.year && (
+                    {(application.student_year || application.student?.year) && (
                       <p className="text-sm text-gray-600 mb-1">
-                        <span className="font-medium">Year:</span> {application.student.year}
+                        <span className="font-medium">Year:</span> {application.student_year || application.student?.year}
                       </p>
                     )}
-                    {application.student?.cgpa && (
+                    {(application.student_cgpa || application.student?.cgpa) && (
                       <p className="text-sm text-gray-600">
-                        <span className="font-medium">CGPA:</span> {application.student.cgpa}
+                        <span className="font-medium">CGPA:</span> {application.student_cgpa || application.student?.cgpa}
                       </p>
                     )}
                   </div>
@@ -256,13 +324,22 @@ const ApplicationsList = () => {
                     Application ID: {application.id}
                   </div>
                   <div className="flex space-x-2">
-                    {application.status !== 'accepted' && (
+                    {application.status !== 'shortlisted' && application.status !== 'placed' && (
                       <Button
                         size="sm"
-                        onClick={() => handleUpdateApplicationStatus(application.id, 'accepted')}
+                        onClick={() => handleUpdateApplicationStatus(application.id, 'shortlisted')}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        Shortlist
+                      </Button>
+                    )}
+                    {application.status === 'shortlisted' && application.status !== 'placed' && (
+                      <Button
+                        size="sm"
+                        onClick={() => handleUpdateApplicationStatus(application.id, 'placed')}
                         className="bg-green-600 hover:bg-green-700"
                       >
-                        Accept
+                        Mark as Placed
                       </Button>
                     )}
                     {application.status !== 'rejected' && (
@@ -273,15 +350,6 @@ const ApplicationsList = () => {
                         className="text-red-600 hover:text-red-700 hover:bg-red-50"
                       >
                         Reject
-                      </Button>
-                    )}
-                    {application.status !== 'reviewing' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleUpdateApplicationStatus(application.id, 'reviewing')}
-                      >
-                        Mark as Reviewing
                       </Button>
                     )}
                   </div>

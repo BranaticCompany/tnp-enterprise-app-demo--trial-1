@@ -369,11 +369,261 @@ const getMyInterviews = async (req, res) => {
     }
 };
 
+// Update interview mode (Recruiter only)
+const updateInterviewMode = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { mode } = req.body;
+
+        // Validate mode
+        const validModes = ['online', 'offline'];
+        if (!mode || !validModes.includes(mode)) {
+            return res.status(400).json({
+                error: 'Invalid mode. Must be one of: online, offline'
+            });
+        }
+
+        // Check if interview exists
+        const interviewCheck = await pool.query(`
+            SELECT i.*, j.title as job_title, c.name as company_name
+            FROM interviews i
+            JOIN applications a ON i.application_id = a.id
+            JOIN jobs j ON a.job_id = j.id
+            LEFT JOIN companies c ON j.company_id = c.id
+            WHERE i.id = $1
+        `, [id]);
+
+        if (interviewCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Interview not found' });
+        }
+
+        // Update interview mode
+        const result = await pool.query(`
+            UPDATE interviews 
+            SET mode = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+            RETURNING *
+        `, [mode, id]);
+
+        const updatedInterview = result.rows[0];
+
+        // Get complete interview data for response
+        const completeInterview = await pool.query(`
+            SELECT 
+                i.*,
+                j.title as job_title,
+                j.package as job_package,
+                COALESCE(j.company_name, c.name) as company_name,
+                u.email as student_email,
+                p.full_name as student_name,
+                p.phone as student_phone,
+                p.branch as student_branch,
+                p.year_of_study as student_year,
+                a.status as application_status
+            FROM interviews i
+            JOIN applications a ON i.application_id = a.id
+            JOIN jobs j ON a.job_id = j.id
+            LEFT JOIN companies c ON j.company_id = c.id
+            JOIN users u ON a.student_id = u.id
+            LEFT JOIN profiles p ON u.id = p.user_id
+            WHERE i.id = $1
+        `, [id]);
+
+        res.json({
+            message: 'Interview mode updated successfully',
+            interview: completeInterview.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Error updating interview mode:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Get recruiter's interviews (shortlisted candidates + scheduled interviews)
+const getRecruiterInterviews = async (req, res) => {
+    try {
+        const recruiter_id = req.user.id;
+
+        // Get shortlisted applications and existing interviews for all jobs (temporarily)
+        // TODO: Filter by recruiter when created_by field is added
+        const result = await pool.query(`
+            SELECT 
+                a.id as application_id,
+                a.status as application_status,
+                a.created_at as applied_at,
+                j.id as job_id,
+                j.title as job_title,
+                COALESCE(j.company_name, c.name) as company_name,
+                j.package as job_package,
+                u.email as student_email,
+                p.full_name as student_name,
+                p.phone as student_phone,
+                p.branch as student_branch,
+                p.year_of_study as student_year,
+                i.id as interview_id,
+                i.scheduled_at,
+                i.mode,
+                i.status as interview_status,
+                i.feedback,
+                i.created_at as interview_created_at,
+                CASE WHEN i.scheduled_at IS NOT NULL THEN i.scheduled_at ELSE a.created_at END as sort_date
+            FROM applications a
+            JOIN jobs j ON a.job_id = j.id
+            LEFT JOIN companies c ON j.company_id = c.id
+            JOIN users u ON a.student_id = u.id
+            LEFT JOIN profiles p ON u.id = p.user_id
+            LEFT JOIN interviews i ON a.id = i.application_id
+            WHERE a.status = 'shortlisted'
+            ORDER BY sort_date ASC
+        `);
+
+        // Transform the data to match frontend expectations
+        const interviews = result.rows.map(row => ({
+            interview_id: row.interview_id,
+            application_id: row.application_id,
+            job_id: row.job_id,
+            job_title: row.job_title,
+            company_name: row.company_name,
+            job_package: row.job_package,
+            student_name: row.student_name,
+            student_email: row.student_email,
+            student_phone: row.student_phone,
+            student_branch: row.student_branch,
+            student_year: row.student_year,
+            application_status: row.application_status,
+            status: row.interview_id ? row.interview_status : 'shortlisted',
+            scheduled_at: row.scheduled_at,
+            mode: row.mode,
+            feedback: row.feedback,
+            created_at: row.interview_created_at || row.applied_at
+        }));
+
+        res.json({
+            interviews,
+            total: interviews.length
+        });
+    } catch (error) {
+        console.error('Error fetching recruiter interviews:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Create interview for shortlisted candidate (Recruiter only)
+const scheduleInterview = async (req, res) => {
+    try {
+        const { application_id, scheduled_at, mode = 'online' } = req.body;
+        const recruiter_id = req.user.id;
+
+        // Validate required fields
+        if (!application_id || !scheduled_at) {
+            return res.status(400).json({
+                error: 'Missing required fields: application_id and scheduled_at are required'
+            });
+        }
+
+        // Validate mode enum
+        const validModes = ['online', 'offline'];
+        if (!validModes.includes(mode)) {
+            return res.status(400).json({
+                error: 'Invalid mode. Must be one of: online, offline'
+            });
+        }
+
+        // Validate scheduled_at is in the future
+        const scheduledDate = new Date(scheduled_at);
+        const now = new Date();
+        if (scheduledDate <= now) {
+            return res.status(400).json({
+                error: 'Interview must be scheduled for a future date and time'
+            });
+        }
+
+        // Check if application exists and is shortlisted
+        // TODO: Add recruiter ownership check when created_by field is added
+        const applicationCheck = await pool.query(`
+            SELECT 
+                a.id, a.student_id, a.status,
+                j.id as job_id, j.title as job_title,
+                COALESCE(j.company_name, c.name) as company_name,
+                j.company_id,
+                u.email as student_email,
+                p.full_name as student_name
+            FROM applications a
+            JOIN jobs j ON a.job_id = j.id
+            LEFT JOIN companies c ON j.company_id = c.id
+            JOIN users u ON a.student_id = u.id
+            LEFT JOIN profiles p ON u.id = p.user_id
+            WHERE a.id = $1
+        `, [application_id]);
+
+        if (applicationCheck.rows.length === 0) {
+            return res.status(404).json({ 
+                error: 'Application not found' 
+            });
+        }
+
+        const application = applicationCheck.rows[0];
+
+        if (application.status !== 'shortlisted') {
+            return res.status(400).json({ 
+                error: 'Can only schedule interviews for shortlisted candidates' 
+            });
+        }
+
+        // Check for duplicate interview for this application
+        const duplicateCheck = await pool.query(
+            'SELECT id FROM interviews WHERE application_id = $1',
+            [application_id]
+        );
+
+        if (duplicateCheck.rows.length > 0) {
+            return res.status(409).json({ 
+                error: 'Interview already scheduled for this application' 
+            });
+        }
+
+        // Create the interview
+        const result = await pool.query(`
+            INSERT INTO interviews (application_id, company_id, student_id, scheduled_at, mode, status)
+            VALUES ($1, $2, $3, $4, $5, 'scheduled')
+            RETURNING *
+        `, [application_id, application.company_id, application.student_id, scheduled_at, mode]);
+
+        res.status(201).json({
+            message: 'Interview scheduled successfully',
+            interview: {
+                ...result.rows[0],
+                job_title: application.job_title,
+                company_name: application.company_name,
+                student_name: application.student_name,
+                student_email: application.student_email
+            }
+        });
+    } catch (error) {
+        console.error('Error scheduling interview:', error);
+        if (error.code === '23505') { // Unique constraint violation
+            return res.status(409).json({ 
+                error: 'Interview already scheduled for this application' 
+            });
+        }
+        if (error.code === '23514') { // Check constraint violation (future date)
+            return res.status(400).json({
+                error: 'Interview must be scheduled for a future date and time'
+            });
+        }
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
 module.exports = {
     createInterview,
     getInterviews,
     getInterviewById,
     updateInterview,
     deleteInterview,
-    getMyInterviews
+    getMyInterviews,
+    getRecruiterInterviews,
+    scheduleInterview,
+    updateInterviewMode
 };

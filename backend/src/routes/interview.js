@@ -7,7 +7,10 @@ const {
     getInterviewById,
     updateInterview,
     deleteInterview,
-    getMyInterviews
+    getMyInterviews,
+    getRecruiterInterviews,
+    scheduleInterview,
+    updateInterviewMode
 } = require('../controllers/interviewController');
 
 // Apply authentication middleware to all routes
@@ -15,6 +18,15 @@ router.use(authenticateToken);
 
 // GET /api/v1/interviews/me - Get student's own interviews
 router.get('/me', requireRole(['student']), getMyInterviews);
+
+// GET /api/v1/interviews/recruiter - Get recruiter's interviews (shortlisted candidates)
+router.get('/recruiter', requireRole(['recruiter']), getRecruiterInterviews);
+
+// POST /api/v1/interviews/recruiter - Schedule interview for shortlisted candidate
+router.post('/recruiter', requireRole(['recruiter']), scheduleInterview);
+
+// PATCH /api/v1/interviews/recruiter/:id - Update interview mode (Recruiter only)
+router.patch('/recruiter/:id', requireRole(['recruiter']), updateInterviewMode);
 
 // GET /api/v1/interviews - List interviews (role-based filtering)
 // Students: only their own interviews

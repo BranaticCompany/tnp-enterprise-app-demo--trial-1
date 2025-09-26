@@ -9,10 +9,15 @@ import AdminDashboard from './pages/AdminDashboard'
 import RecruiterDashboard from './pages/RecruiterDashboard'
 import StudentDashboard from './pages/StudentDashboard'
 import AccessDenied from './pages/AccessDenied'
+// Admin pages
+import AdminUsers from './pages/admin/AdminUsers'
+import AdminCompanies from './pages/admin/AdminCompanies'
+import AdminStudents from './pages/admin/AdminStudents'
 // Recruiter pages
 import JobsList from './pages/recruiter/JobsList'
 import PostJob from './pages/recruiter/PostJob'
 import ApplicationsList from './pages/recruiter/ApplicationsList'
+import RecruiterInterviews from './pages/recruiter/RecruiterInterviews'
 // Student pages
 import BrowseJobs from './pages/student/BrowseJobs'
 import MyApplications from './pages/student/MyApplications'
@@ -149,10 +154,7 @@ const AppContent = () => {
           path="/admin/users" 
           element={
             <RoleBasedRoute allowedRoles={['admin']}>
-              <div className="p-6 max-w-7xl mx-auto">
-                <h1 className="text-2xl font-bold">User Management</h1>
-                <p className="text-gray-600 mt-2">Manage all users in the system</p>
-              </div>
+              <AdminUsers />
             </RoleBasedRoute>
           } 
         />
@@ -160,10 +162,15 @@ const AppContent = () => {
           path="/admin/companies" 
           element={
             <RoleBasedRoute allowedRoles={['admin']}>
-              <div className="p-6 max-w-7xl mx-auto">
-                <h1 className="text-2xl font-bold">Company Management</h1>
-                <p className="text-gray-600 mt-2">Manage companies and their job postings</p>
-              </div>
+              <AdminCompanies />
+            </RoleBasedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/students" 
+          element={
+            <RoleBasedRoute allowedRoles={['admin']}>
+              <AdminStudents />
             </RoleBasedRoute>
           } 
         />
@@ -216,10 +223,7 @@ const AppContent = () => {
           path="/recruiter/interviews" 
           element={
             <RoleBasedRoute allowedRoles={['recruiter']}>
-              <div className="p-6 max-w-7xl mx-auto">
-                <h1 className="text-2xl font-bold">Interviews</h1>
-                <p className="text-gray-600 mt-2">Schedule and manage interviews</p>
-              </div>
+              <RecruiterInterviews />
             </RoleBasedRoute>
           } 
         />

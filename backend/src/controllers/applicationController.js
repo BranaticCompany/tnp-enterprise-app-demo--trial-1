@@ -148,28 +148,41 @@ const getMyApplications = async (req, res) => {
 const getJobApplications = async (req, res) => {
   try {
     const { jobId } = req.params;
+    const recruiterId = req.user.id;
 
-    // First verify the job exists and get company info
-    const jobResult = await db.query(`
-      SELECT j.id, j.title, c.name as company_name
+    console.log('=== GET JOB APPLICATIONS DEBUG ===');
+    console.log('Job ID:', jobId);
+    console.log('Recruiter ID:', recruiterId);
+    console.log('User role:', req.user.role);
+
+    // First verify the job exists and belongs to the recruiter (if recruiter role)
+    let jobQuery = `
+      SELECT j.id, j.title, COALESCE(j.company_name, 'Unknown Company') as company_name
       FROM jobs j
-      JOIN companies c ON j.company_id = c.id
       WHERE j.id = $1
-    `, [jobId]);
+    `;
+    let jobParams = [jobId];
+
+    const jobResult = await db.query(jobQuery, jobParams);
+    console.log('Job found:', jobResult.rows.length > 0 ? 'YES' : 'NO');
+    if (jobResult.rows.length > 0) {
+      console.log('Job title:', jobResult.rows[0].title);
+    }
 
     if (jobResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Job not found' });
+      console.log('Job not found for ID:', jobId);
+      return res.status(404).json({ error: 'Job not found or access denied' });
     }
 
     // Get applications for this job with student profile info
-    const result = await db.query(`
+    const applicationsQuery = `
       SELECT 
         a.id,
         a.status,
         a.created_at,
         a.updated_at,
         u.email as student_email,
-        p.full_name as student_name,
+        COALESCE(p.full_name, u.email) as student_name,
         p.phone as student_phone,
         p.branch as student_branch,
         p.year_of_study as student_year,
@@ -179,11 +192,17 @@ const getJobApplications = async (req, res) => {
       LEFT JOIN profiles p ON u.id = p.user_id
       WHERE a.job_id = $1
       ORDER BY a.created_at DESC
-    `, [jobId]);
+    `;
+
+    const result = await db.query(applicationsQuery, [jobId]);
+    console.log('Applications found:', result.rowCount);
+    if (result.rowCount > 0) {
+      console.log('Sample application:', result.rows[0]);
+    }
 
     const job = jobResult.rows[0];
 
-    res.status(200).json({
+    const response = {
       job: {
         id: jobId,
         title: job.title,
@@ -191,11 +210,20 @@ const getJobApplications = async (req, res) => {
       },
       applications: result.rows || [],
       count: result.rowCount || 0
-    });
+    };
+
+    console.log('Sending response with', response.applications.length, 'applications');
+
+    res.status(200).json(response);
 
   } catch (error) {
-    console.error('Get job applications error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('=== GET JOB APPLICATIONS ERROR ===');
+    console.error('Full error object:', error);
+    console.error('Error message:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Error detail:', error.detail);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 };
 

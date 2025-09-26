@@ -20,7 +20,7 @@ const StudentInterviews = () => {
     try {
       setLoading(true)
       setError(null)
-      
+
       const response = await interviewsAPI.getMyInterviews()
       setInterviews(response.interviews || response || [])
     } catch (err) {
@@ -60,7 +60,7 @@ const StudentInterviews = () => {
     interviews.forEach(interview => {
       const status = interview.status?.toLowerCase()
       const interviewDate = new Date(interview.scheduled_at)
-      
+
       if (status === 'scheduled') {
         stats.scheduled++
         if (interviewDate > now) {
@@ -192,7 +192,7 @@ const StudentInterviews = () => {
 
           {interviews.map((interview) => {
             const isUpcoming = new Date(interview.scheduled_at) > new Date()
-            
+
             return (
               <Card key={interview.id} className="hover:shadow-md transition-shadow" data-cy="interview-item">
                 <CardHeader>

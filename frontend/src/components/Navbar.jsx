@@ -64,6 +64,12 @@ const Navbar = () => {
                       Companies
                     </Link>
                     <Link
+                      to="/admin/students"
+                      className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                    >
+                      Students
+                    </Link>
+                    <Link
                       to="/admin/reports"
                       className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
                     >

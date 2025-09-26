@@ -9,7 +9,8 @@
     "test": "jest --runInBand",
     "migrate": "node-pg-migrate up",
     "seed": "node src/utils/seed.js",
-    "verify-seed": "node src/utils/verify-seed.js"
+    "verify-seed": "node src/utils/verify-seed.js",
+    "add-skills": "node src/utils/add-skills-to-existing-jobs.js"
   },
   "engines": {
     "node": "16.20.0"

@@ -340,10 +340,26 @@ async function seedJobs(companyRecords) {
         const job = jobData[i];
         const company = companyRecords[job.companyIndex % companyRecords.length];
 
+        // Define skills for each job
+        const jobSkills = {
+            'Software Engineer Intern': ['JavaScript', 'Python', 'Git', 'Problem Solving'],
+            'Full Stack Developer': ['JavaScript', 'React', 'Node.js', 'MongoDB', 'REST API'],
+            'Data Scientist': ['Python', 'Machine Learning', 'SQL', 'Data Analysis', 'PostgreSQL'],
+            'Frontend Developer': ['React', 'HTML', 'CSS', 'JavaScript', 'Communication'],
+            'Cloud Engineer Intern': ['AWS', 'Linux', 'Docker', 'DevOps'],
+            'Software Development Engineer': ['Java', 'Data Structures', 'Algorithms', 'System Design'],
+            'Business Analyst': ['Communication', 'MS Excel', 'Problem Solving', 'SQL'],
+            'Quality Assurance Engineer': ['Testing', 'Selenium', 'Java', 'SDLC'],
+            'Machine Learning Engineer': ['Python', 'TensorFlow', 'Deep Learning', 'MLOps', 'Statistics'],
+            'Product Management Intern': ['Communication', 'Project Management', 'Analytics', 'Leadership']
+        };
+
+        const skills = jobSkills[job.title] || [];
+
         const result = await db.query(`
-            INSERT INTO jobs (company_id, company_name, title, description, eligibility, application_deadline, package, type, location, cgpa_criteria) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *
-        `, [company.id, company.name, job.title, job.description, job.eligibility, job.deadline, job.package, job.type, job.location, job.cgpa_criteria]);
+            INSERT INTO jobs (company_id, company_name, title, description, eligibility, application_deadline, package, type, location, cgpa_criteria, skills) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *
+        `, [company.id, company.name, job.title, job.description, job.eligibility, job.deadline, job.package, job.type, job.location, job.cgpa_criteria, JSON.stringify(skills)]);
 
         // Add company name for reference
         const jobWithCompany = {

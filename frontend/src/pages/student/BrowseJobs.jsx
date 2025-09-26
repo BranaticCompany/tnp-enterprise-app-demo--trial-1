@@ -44,7 +44,7 @@ const BrowseJobs = () => {
         console.log('Student-specific endpoint not available, using general endpoint')
         response = await applicationsAPI.getAllApplications()
       }
-      
+
       const applications = response.applications || response || []
       console.log('Fetched applications:', applications) // Debug log
       // Ensure robust type comparison for job IDs
@@ -248,6 +248,23 @@ const BrowseJobs = () => {
                     <div className="mb-4">
                       <h4 className="font-medium text-gray-900 mb-2">Requirements</h4>
                       <p className="text-sm text-gray-600">{job.requirements}</p>
+                    </div>
+                  )}
+
+                  {/* Skills Section */}
+                  {job.skills && job.skills.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="font-medium text-gray-900 mb-2">Required Skills</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {job.skills.map((skill, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800 border border-indigo-200"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   )}
 

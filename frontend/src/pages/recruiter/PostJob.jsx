@@ -20,8 +20,27 @@ const PostJob = () => {
     location: '',
     jobType: 'Full Time',
     company_name: '',
-    cgpa_criteria: ''
+    cgpa_criteria: '',
+    skills: []
   })
+
+  // Skills suggestions
+  const skillsSuggestions = [
+    'JavaScript', 'Python', 'Java', 'React', 'Node.js', 'Angular', 'Vue.js',
+    'Django', 'Flask', 'Spring Boot', 'Express.js', 'MongoDB', 'PostgreSQL',
+    'MySQL', 'Redis', 'Docker', 'Kubernetes', 'AWS', 'Azure', 'GCP',
+    'Git', 'HTML', 'CSS', 'TypeScript', 'PHP', 'C++', 'C#', '.NET',
+    'Ruby', 'Go', 'Rust', 'Swift', 'Kotlin', 'Flutter', 'React Native',
+    'Machine Learning', 'Data Science', 'AI', 'Deep Learning', 'TensorFlow',
+    'PyTorch', 'Pandas', 'NumPy', 'Scikit-learn', 'SQL', 'NoSQL',
+    'REST API', 'GraphQL', 'Microservices', 'DevOps', 'CI/CD', 'Jenkins',
+    'Terraform', 'Ansible', 'Linux', 'Windows', 'MacOS', 'Agile', 'Scrum',
+    'Project Management', 'Communication', 'Problem Solving', 'Leadership',
+    'Teamwork', 'Critical Thinking', 'MS Excel', 'PowerBI', 'Tableau'
+  ]
+
+  const [skillInput, setSkillInput] = useState('')
+  const [showSkillSuggestions, setShowSkillSuggestions] = useState(false)
 
   // No need to load companies since we're using text input
 
@@ -33,25 +52,67 @@ const PostJob = () => {
     }))
   }
 
+  const handleSkillInputChange = (e) => {
+    const value = e.target.value
+    setSkillInput(value)
+    setShowSkillSuggestions(value.length > 0)
+  }
+
+  const addSkill = (skill) => {
+    const trimmedSkill = skill.trim()
+    if (trimmedSkill && !formData.skills.includes(trimmedSkill)) {
+      setFormData(prev => ({
+        ...prev,
+        skills: [...prev.skills, trimmedSkill]
+      }))
+    }
+    setSkillInput('')
+    setShowSkillSuggestions(false)
+  }
+
+  const removeSkill = (skillToRemove) => {
+    setFormData(prev => ({
+      ...prev,
+      skills: prev.skills.filter(skill => skill !== skillToRemove)
+    }))
+  }
+
+  const handleSkillKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (skillInput.trim()) {
+        addSkill(skillInput)
+      }
+    }
+  }
+
+  const getFilteredSuggestions = () => {
+    if (!skillInput) return []
+    return skillsSuggestions.filter(skill => 
+      skill.toLowerCase().includes(skillInput.toLowerCase()) &&
+      !formData.skills.includes(skill)
+    ).slice(0, 8) // Limit to 8 suggestions
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     // Comprehensive validation
     if (!formData.title?.trim()) {
       toast.error('Job title is required')
       return
     }
-    
+
     if (!formData.description?.trim()) {
       toast.error('Job description is required')
       return
     }
-    
+
     if (!formData.company_name?.trim()) {
       toast.error('Company name is required')
       return
     }
-    
+
     if (!formData.deadline) {
       toast.error('Application deadline is required')
       return
@@ -79,7 +140,13 @@ const PostJob = () => {
 
     try {
       setLoading(true)
-      
+
+      // Prepare skills array - ensure it's always a valid array
+      let skillsArray = [];
+      if (formData.skills && Array.isArray(formData.skills)) {
+        skillsArray = formData.skills.filter(skill => skill && skill.trim().length > 0);
+      }
+
       // Prepare payload with correct field mapping for backend
       const jobData = {
         company_name: formData.company_name.trim(),
@@ -90,17 +157,21 @@ const PostJob = () => {
         package: formData.salary ? parseInt(formData.salary, 10) : null, // Map salary to package as integer
         type: formData.jobType, // Map jobType to type
         location: formData.location?.trim() || null,
-        cgpa_criteria: parseFloat(formData.cgpa_criteria)
+        cgpa_criteria: parseFloat(formData.cgpa_criteria),
+        skills: skillsArray // Send skills array (always a valid array)
       }
 
-      console.log('Sending job data:', jobData) // Debug log
+      console.log('=== FRONTEND JOB POSTING DEBUG ===');
+      console.log('Form skills:', formData.skills);
+      console.log('Processed skills array:', skillsArray);
+      console.log('Sending job data:', JSON.stringify(jobData, null, 2));
 
       const response = await jobsAPI.createJob(jobData)
       toast.success('Job posted successfully!')
       navigate('/recruiter/jobs')
     } catch (err) {
       console.error('Error posting job:', err)
-      
+
       // Enhanced error handling with specific backend messages
       if (err.response?.data?.details && Array.isArray(err.response.data.details)) {
         // Show validation errors from backend
@@ -140,7 +211,7 @@ const PostJob = () => {
             Create a new job posting
           </p>
         </div>
-        
+
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Post New Job</h1>
           <p className="text-gray-600 mt-2">Fill in the details to create a new job posting</p>
@@ -296,17 +367,82 @@ const PostJob = () => {
               />
             </div>
 
+            {/* Skills Section */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Required Skills
+              </label>
+              <div className="space-y-3">
+                {/* Skills Input */}
+                <div className="relative">
+                  <Input
+                    type="text"
+                    value={skillInput}
+                    onChange={handleSkillInputChange}
+                    onKeyPress={handleSkillKeyPress}
+                    placeholder="Type to search skills or add custom skills (press Enter to add)"
+                    className="w-full"
+                    onFocus={() => setShowSkillSuggestions(skillInput.length > 0)}
+                  />
+                  
+                  {/* Skills Suggestions Dropdown */}
+                  {showSkillSuggestions && getFilteredSuggestions().length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                      {getFilteredSuggestions().map((skill, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          className="w-full text-left px-3 py-2 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none border-b border-gray-100 last:border-b-0"
+                          onClick={() => addSkill(skill)}
+                        >
+                          {skill}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Selected Skills Display */}
+                {formData.skills.length > 0 && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Selected Skills ({formData.skills.length}):</p>
+                    <div className="flex flex-wrap gap-2">
+                      {formData.skills.map((skill, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
+                        >
+                          {skill}
+                          <button
+                            type="button"
+                            onClick={() => removeSkill(skill)}
+                            className="ml-2 text-blue-600 hover:text-blue-800 focus:outline-none"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-xs text-gray-500">
+                  Add skills that candidates should have for this position. You can select from suggestions or add custom skills.
+                </p>
+              </div>
+            </div>
+
             <div className="flex justify-end space-x-4 pt-6 border-t">
-              <Button 
-                type="button" 
-                variant="outline" 
+              <Button
+                type="button"
+                variant="outline"
                 onClick={handleCancel}
                 disabled={loading}
               >
                 Cancel
               </Button>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={loading}
                 className="bg-blue-600 hover:bg-blue-700"
               >
