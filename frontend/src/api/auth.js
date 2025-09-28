@@ -197,9 +197,57 @@ export const companiesAPI = {
   }
 }
 
+export const profileAPI = {
+  getMyProfile: async () => {
+    const response = await api.get('/api/v1/profile/me')
+    return response.data
+  },
+
+  createProfile: async (profileData) => {
+    const response = await api.post('/api/v1/profile', profileData)
+    return response.data
+  },
+
+  updateProfile: async (profileData) => {
+    const response = await api.put('/api/v1/profile', profileData)
+    return response.data
+  }
+}
+
 export const recruiterAPI = {
   getDashboard: async () => {
     const response = await api.get('/api/v1/recruiter/dashboard')
+    return response.data
+  }
+}
+
+export const resumeAPI = {
+  uploadResume: async (studentId, file) => {
+    const formData = new FormData()
+    formData.append('resume', file)
+    
+    const response = await api.post(`/api/v1/students/${studentId}/resume`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    return response.data
+  },
+
+  deleteResume: async (studentId) => {
+    const response = await api.delete(`/api/v1/students/${studentId}/resume`)
+    return response.data
+  },
+
+  getResume: async (studentId) => {
+    const response = await api.get(`/api/v1/students/${studentId}/resume`, {
+      responseType: 'blob'
+    })
+    return response
+  },
+
+  getResumeInfo: async (studentId) => {
+    const response = await api.get(`/api/v1/students/${studentId}/resume/info`)
     return response.data
   }
 }

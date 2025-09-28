@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
-import { adminAPI } from '../../api/auth'
+import { adminAPI, resumeAPI } from '../../api/auth'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
+import toast from 'react-hot-toast'
 
 const AdminStudents = () => {
   const { user } = useAuth()
@@ -10,6 +11,7 @@ const AdminStudents = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [filter, setFilter] = useState('all') // all, placed, not_placed
+  const [resumeAvailability, setResumeAvailability] = useState({})
 
   const loadStudents = async () => {
     setLoading(true)
@@ -18,12 +20,50 @@ const AdminStudents = () => {
       console.log('Loading students...')
       const response = await adminAPI.getAllStudents()
       console.log('Students response:', response)
-      setStudents(response.students || [])
+      const studentsData = response.students || []
+      setStudents(studentsData)
+
+      // Check resume availability for each student
+      const resumeChecks = {}
+      for (const student of studentsData) {
+        if (student.id) {
+          try {
+            const resumeResponse = await resumeAPI.getResumeInfo(student.id)
+            resumeChecks[student.id] = resumeResponse.success && resumeResponse.data.hasResume
+          } catch (error) {
+            console.error(`Error checking resume for student ${student.id}:`, error)
+            resumeChecks[student.id] = false
+          }
+        }
+      }
+      setResumeAvailability(resumeChecks)
     } catch (error) {
       console.error('Failed to load students:', error)
       setError(error.response?.data?.message || 'Failed to load students')
     }
     setLoading(false)
+  }
+
+  const handleViewResume = async (studentId, studentName) => {
+    try {
+      console.log('Attempting to view resume for student:', studentId, studentName)
+      const response = await resumeAPI.getResume(studentId)
+      
+      // Create blob URL and open in new tab
+      const blob = new Blob([response.data], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      window.open(url, '_blank')
+      
+      // Clean up the URL after a delay
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000)
+    } catch (error) {
+      console.error('Error viewing resume:', error)
+      if (error.response?.status === 404) {
+        toast.error(`${studentName} has not uploaded a resume yet`)
+      } else {
+        toast.error('Failed to open resume')
+      }
+    }
   }
 
   useEffect(() => {
@@ -312,16 +352,30 @@ const AdminStudents = () => {
                             >
                               View Profile
                             </Button>
-                            {student.resume_url && (
+                            {resumeAvailability[student.id] ? (
                               <Button
                                 size="sm"
                                 variant="ghost"
                                 className="text-xs text-blue-600 hover:text-blue-800"
-                                onClick={() => {
-                                  window.open(student.resume_url, '_blank')
-                                }}
+                                onClick={() => handleViewResume(student.id, student.name)}
                               >
+                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
                                 Resume
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled
+                                className="text-xs text-gray-400 cursor-not-allowed"
+                                title="No resume available"
+                              >
+                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                No Resume
                               </Button>
                             )}
                           </div>

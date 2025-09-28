@@ -108,6 +108,7 @@ const getMyApplications = async (req, res) => {
         j.application_deadline,
         j.package as job_package,
         j.type as job_type,
+        j.skills as job_skills,
         c.name as company_name,
         c.website as company_website,
         c.description as company_description,

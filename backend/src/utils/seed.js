@@ -167,30 +167,37 @@ async function seedProfiles(users) {
     const profiles = [];
 
     const studentData = [
-        { name: 'John Doe', phone: '9876543210', branch: 'Computer Science', year: 4 },
-        { name: 'Jane Smith', phone: '9876543211', branch: 'Electronics', year: 4 },
-        { name: 'Rahul Sharma', phone: '9876543212', branch: 'Computer Science', year: 3 },
-        { name: 'Priya Patel', phone: '9876543213', branch: 'Information Technology', year: 4 },
-        { name: 'Michael Johnson', phone: '9876543214', branch: 'Mechanical', year: 3 },
-        { name: 'Sarah Wilson', phone: '9876543215', branch: 'Electronics', year: 4 },
-        { name: 'Amit Kumar', phone: '9876543216', branch: 'Computer Science', year: 3 },
-        { name: 'Sneha Reddy', phone: '9876543217', branch: 'Civil', year: 4 }
+        { name: 'John Doe', phone: '9876543210', branch: 'Computer Science', year: 4, resumeFile: 'john_doe_resume.pdf' },
+        { name: 'Jane Smith', phone: '9876543211', branch: 'Electronics', year: 4, resumeFile: 'jane_smith_resume.pdf' },
+        { name: 'Rahul Sharma', phone: '9876543212', branch: 'Computer Science', year: 3, resumeFile: null },
+        { name: 'Priya Patel', phone: '9876543213', branch: 'Information Technology', year: 4, resumeFile: 'alex_johnson_resume.pdf' },
+        { name: 'Michael Johnson', phone: '9876543214', branch: 'Mechanical', year: 3, resumeFile: null },
+        { name: 'Sarah Wilson', phone: '9876543215', branch: 'Electronics', year: 4, resumeFile: null },
+        { name: 'Amit Kumar', phone: '9876543216', branch: 'Computer Science', year: 3, resumeFile: null },
+        { name: 'Sneha Reddy', phone: '9876543217', branch: 'Civil', year: 4, resumeFile: null }
     ];
 
     for (let i = 0; i < students.length; i++) {
         const student = students[i];
         const data = studentData[i];
 
+        // Set resume_url based on whether student has a resume file
+        const resumeUrl = data.resumeFile ? `uploads/resumes/${data.resumeFile}` : null;
+
+        // Generate a realistic CGPA between 6.5 and 9.5
+        const cgpa = (Math.random() * 3 + 6.5).toFixed(2);
+
         const profileResult = await db.query(`
-            INSERT INTO profiles (user_id, full_name, phone, branch, year_of_study, resume_url) 
-            VALUES ($1, $2, $3, $4, $5, $6) RETURNING *
+            INSERT INTO profiles (user_id, full_name, phone, branch, year_of_study, cgpa, resume_url) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
         `, [
             student.id,
             data.name,
             data.phone,
             data.branch,
             data.year,
-            `https://resume-storage.com/${data.name.toLowerCase().replace(' ', '-')}.pdf`
+            parseFloat(cgpa),
+            resumeUrl
         ]);
         profiles.push(profileResult.rows[0]);
     }

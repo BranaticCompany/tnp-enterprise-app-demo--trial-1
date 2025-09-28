@@ -261,6 +261,23 @@ const MyApplications = () => {
                   </div>
                 )}
 
+                {/* Required Skills Section */}
+                {application.job_skills && application.job_skills.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="font-medium text-gray-900 mb-2">Required Skills</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {application.job_skills.map((skill, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-indigo-100 text-indigo-800"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between pt-4 border-t">
                   <div className="flex items-center space-x-4">
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(application.status)}`}>

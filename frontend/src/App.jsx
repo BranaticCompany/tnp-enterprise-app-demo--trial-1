@@ -23,6 +23,7 @@ import BrowseJobs from './pages/student/BrowseJobs'
 import MyApplications from './pages/student/MyApplications'
 import MyPlacements from './pages/student/MyPlacements'
 import StudentInterviews from './pages/student/StudentInterviews'
+import StudentProfile from './components/StudentProfile'
 import './index.css'
 
 const ProtectedRoute = ({ children }) => {
@@ -266,6 +267,14 @@ const AppContent = () => {
           element={
             <RoleBasedRoute allowedRoles={['student']}>
               <MyPlacements />
+            </RoleBasedRoute>
+          } 
+        />
+        <Route 
+          path="/student/profile" 
+          element={
+            <RoleBasedRoute allowedRoles={['student']}>
+              <StudentProfile />
             </RoleBasedRoute>
           } 
         />

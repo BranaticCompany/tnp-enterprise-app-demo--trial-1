@@ -1,4 +1,4 @@
-const pool = require('../utils/database');
+const db = require('../utils/database');
 
 // Create a new interview (Admin/Recruiter only)
 const createInterview = async (req, res) => {
@@ -38,7 +38,7 @@ const createInterview = async (req, res) => {
         }
 
         // Check if application exists and get related data
-        const applicationCheck = await pool.query(`
+        const applicationCheck = await db.query(`
             SELECT 
                 a.id, a.student_id, 
                 j.company_id,
@@ -58,7 +58,7 @@ const createInterview = async (req, res) => {
         const application = applicationCheck.rows[0];
 
         // Check for duplicate interview for this application
-        const duplicateCheck = await pool.query(
+        const duplicateCheck = await db.query(
             'SELECT id FROM interviews WHERE application_id = $1',
             [application_id]
         );
@@ -70,7 +70,7 @@ const createInterview = async (req, res) => {
         }
 
         // Create the interview
-        const result = await pool.query(`
+        const result = await db.query(`
             INSERT INTO interviews (application_id, company_id, student_id, scheduled_at, mode, status, feedback)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *
@@ -160,7 +160,7 @@ const getInterviews = async (req, res) => {
 
         query += ' ORDER BY i.scheduled_at ASC';
 
-        const result = await pool.query(query, queryParams);
+        const result = await db.query(query, queryParams);
 
         res.json({
             interviews: result.rows,
@@ -195,7 +195,7 @@ const getInterviewById = async (req, res) => {
             WHERE i.id = $1
         `;
 
-        const result = await pool.query(query, [id]);
+        const result = await db.query(query, [id]);
 
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Interview not found' });
@@ -224,7 +224,7 @@ const updateInterview = async (req, res) => {
         const { scheduled_at, mode, status, feedback } = req.body;
 
         // Check if interview exists
-        const existingInterview = await pool.query(
+        const existingInterview = await db.query(
             'SELECT * FROM interviews WHERE id = $1',
             [id]
         );
@@ -295,7 +295,7 @@ const updateInterview = async (req, res) => {
             RETURNING *
         `;
 
-        const result = await pool.query(query, values);
+        const result = await db.query(query, values);
 
         res.json({
             message: 'Interview updated successfully',
@@ -317,7 +317,7 @@ const deleteInterview = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const result = await pool.query(
+        const result = await db.query(
             'DELETE FROM interviews WHERE id = $1 RETURNING *',
             [id]
         );
@@ -341,13 +341,14 @@ const getMyInterviews = async (req, res) => {
     try {
         const student_id = req.user.id;
 
-        const result = await pool.query(`
+        const result = await db.query(`
             SELECT 
                 i.*,
                 j.title as job_title,
                 j.description as job_description,
                 j.package as job_package,
                 j.type as job_type,
+                j.skills as job_skills,
                 c.name as company_name,
                 c.website as company_website,
                 a.status as application_status
@@ -384,7 +385,7 @@ const updateInterviewMode = async (req, res) => {
         }
 
         // Check if interview exists
-        const interviewCheck = await pool.query(`
+        const interviewCheck = await db.query(`
             SELECT i.*, j.title as job_title, c.name as company_name
             FROM interviews i
             JOIN applications a ON i.application_id = a.id
@@ -398,7 +399,7 @@ const updateInterviewMode = async (req, res) => {
         }
 
         // Update interview mode
-        const result = await pool.query(`
+        const result = await db.query(`
             UPDATE interviews 
             SET mode = $1, updated_at = CURRENT_TIMESTAMP
             WHERE id = $2
@@ -408,7 +409,7 @@ const updateInterviewMode = async (req, res) => {
         const updatedInterview = result.rows[0];
 
         // Get complete interview data for response
-        const completeInterview = await pool.query(`
+        const completeInterview = await db.query(`
             SELECT 
                 i.*,
                 j.title as job_title,
@@ -447,7 +448,7 @@ const getRecruiterInterviews = async (req, res) => {
 
         // Get shortlisted applications and existing interviews for all jobs (temporarily)
         // TODO: Filter by recruiter when created_by field is added
-        const result = await pool.query(`
+        const result = await db.query(`
             SELECT 
                 a.id as application_id,
                 a.status as application_status,
@@ -541,7 +542,7 @@ const scheduleInterview = async (req, res) => {
 
         // Check if application exists and is shortlisted
         // TODO: Add recruiter ownership check when created_by field is added
-        const applicationCheck = await pool.query(`
+        const applicationCheck = await db.query(`
             SELECT 
                 a.id, a.student_id, a.status,
                 j.id as job_id, j.title as job_title,
@@ -572,7 +573,7 @@ const scheduleInterview = async (req, res) => {
         }
 
         // Check for duplicate interview for this application
-        const duplicateCheck = await pool.query(
+        const duplicateCheck = await db.query(
             'SELECT id FROM interviews WHERE application_id = $1',
             [application_id]
         );
@@ -584,7 +585,7 @@ const scheduleInterview = async (req, res) => {
         }
 
         // Create the interview
-        const result = await pool.query(`
+        const result = await db.query(`
             INSERT INTO interviews (application_id, company_id, student_id, scheduled_at, mode, status)
             VALUES ($1, $2, $3, $4, $5, 'scheduled')
             RETURNING *

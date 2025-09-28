@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { applicationsAPI, interviewsAPI, placementsAPI } from '../api/auth'
+import { applicationsAPI, interviewsAPI, placementsAPI, profileAPI } from '../api/auth'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { formatSalary, formatDate } from '../utils/formatters'
@@ -14,6 +14,7 @@ const StudentDashboard = () => {
     interviews: [],
     placements: []
   })
+  const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(false)
   const [stats, setStats] = useState({
     applications: 0,
@@ -39,21 +40,35 @@ const StudentDashboard = () => {
     return statusMap[status?.toLowerCase()] || status?.charAt(0).toUpperCase() + status?.slice(1)
   }
 
+  // Calculate profile completion percentage
+  const calculateProfileCompletion = () => {
+    if (!profile) return 0
+    
+    const fields = ['full_name', 'phone', 'branch', 'year_of_study', 'cgpa', 'resume_url']
+    const filledFields = fields.filter(field => profile[field] && profile[field].toString().trim())
+    const skillsBonus = profile.skills && profile.skills.length > 0 ? 1 : 0
+    
+    return Math.round(((filledFields.length + skillsBonus) / (fields.length + 1)) * 100)
+  }
+
   const loadDashboardData = async () => {
     setLoading(true)
     try {
       // Fetch all data in parallel
-      const [applicationsResponse, interviewsResponse, placementsResponse] = await Promise.all([
+      const [applicationsResponse, interviewsResponse, placementsResponse, profileResponse] = await Promise.all([
         applicationsAPI.getMyApplications().catch(err => ({ applications: [] })),
         interviewsAPI.getMyInterviews().catch(err => ({ interviews: [] })),
-        placementsAPI.getMyPlacements().catch(err => ({ placements: [] }))
+        placementsAPI.getMyPlacements().catch(err => ({ placements: [] })),
+        profileAPI.getMyProfile().catch(err => ({ profile: null }))
       ])
 
       const applications = applicationsResponse.applications || applicationsResponse || []
       const interviews = interviewsResponse.interviews || interviewsResponse || []
       const placements = placementsResponse.placements || placementsResponse || []
+      const profileData = profileResponse.profile || null
 
       setDashboardData({ applications, interviews, placements })
+      setProfile(profileData)
 
       // Calculate stats
       const shortlistedCount = applications.filter(app => {
@@ -368,10 +383,10 @@ const StudentDashboard = () => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Profile Completion</span>
-                  <span className="text-sm text-gray-600">85%</span>
+                  <span className="text-sm text-gray-600">{calculateProfileCompletion()}%</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-green-600 h-2 rounded-full" style={{ width: '85%' }}></div>
+                  <div className="bg-green-600 h-2 rounded-full transition-all duration-300" style={{ width: `${calculateProfileCompletion()}%` }}></div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">

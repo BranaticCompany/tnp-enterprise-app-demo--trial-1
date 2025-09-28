@@ -12,6 +12,7 @@ const interviewRoutes = require('./src/routes/interview');
 const reportRoutes = require('./src/routes/report');
 const recruiterRoutes = require('./src/routes/recruiter');
 const adminRoutes = require('./src/routes/admin');
+const resumeRoutes = require('./src/routes/resume');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -46,6 +47,7 @@ app.use('/api/v1/interviews', interviewRoutes);
 app.use('/api/v1/reports', reportRoutes);
 app.use('/api/v1/recruiter', recruiterRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/students', resumeRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

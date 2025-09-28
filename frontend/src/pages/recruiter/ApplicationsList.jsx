@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
-import { applicationsAPI, jobsAPI } from '../../api/auth'
+import { applicationsAPI, jobsAPI, resumeAPI } from '../../api/auth'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
 import { useSearchParams } from 'react-router-dom'
@@ -18,6 +18,7 @@ const ApplicationsList = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [statusFilter, setStatusFilter] = useState('all')
+  const [resumeAvailability, setResumeAvailability] = useState({})
 
   useEffect(() => {
     fetchJobs()
@@ -65,8 +66,25 @@ const ApplicationsList = () => {
         totalCount: response?.count || 0
       })
       
-      setApplications(response.applications || response || [])
-      console.log('Applications set in state:', response.applications?.length || 0)
+      const applicationsData = response.applications || response || []
+      setApplications(applicationsData)
+      console.log('Applications set in state:', applicationsData.length)
+
+      // Check resume availability for each student
+      const resumeChecks = {}
+      for (const app of applicationsData) {
+        const studentId = app.student_id || app.studentId || app.id
+        if (studentId) {
+          try {
+            const hasResume = await checkResumeAvailability(studentId)
+            resumeChecks[studentId] = hasResume
+          } catch (error) {
+            console.error(`Error checking resume for student ${studentId}:`, error)
+            resumeChecks[studentId] = false
+          }
+        }
+      }
+      setResumeAvailability(resumeChecks)
     } catch (err) {
       console.error('=== FRONTEND: Error fetching applications ===')
       console.error('Error object:', err)
@@ -96,6 +114,38 @@ const ApplicationsList = () => {
       console.error('Error updating application:', err)
       const errorMessage = err.response?.data?.error || 'Failed to update application status'
       toast.error(errorMessage)
+    }
+  }
+
+  const handleViewResume = async (studentId, studentName) => {
+    try {
+      console.log('Attempting to view resume for student:', studentId, studentName)
+      const response = await resumeAPI.getResume(studentId)
+      
+      // Create blob URL and open in new tab
+      const blob = new Blob([response.data], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      window.open(url, '_blank')
+      
+      // Clean up the URL after a delay
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000)
+    } catch (error) {
+      console.error('Error viewing resume:', error)
+      if (error.response?.status === 404) {
+        toast.error(`${studentName} has not uploaded a resume yet`)
+      } else {
+        toast.error('Failed to open resume')
+      }
+    }
+  }
+
+  const checkResumeAvailability = async (studentId) => {
+    try {
+      const response = await resumeAPI.getResumeInfo(studentId)
+      return response.success && response.data.hasResume
+    } catch (error) {
+      console.error('Error checking resume availability:', error)
+      return false
     }
   }
 
@@ -324,6 +374,40 @@ const ApplicationsList = () => {
                     Application ID: {application.id}
                   </div>
                   <div className="flex space-x-2">
+                    {/* Resume Download Button */}
+                    {(() => {
+                      const studentId = application.student_id || application.studentId || application.id
+                      const studentName = application.student_name || application.studentName || application.student?.name || 'Student'
+                      const hasResume = resumeAvailability[studentId]
+                      
+                      return hasResume ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewResume(studentId, studentName)}
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
+                        >
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          View Resume
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled
+                          className="text-gray-400 cursor-not-allowed"
+                          title="No resume available"
+                        >
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          No Resume
+                        </Button>
+                      )
+                    })()}
+                    
                     {application.status !== 'shortlisted' && application.status !== 'placed' && (
                       <Button
                         size="sm"
