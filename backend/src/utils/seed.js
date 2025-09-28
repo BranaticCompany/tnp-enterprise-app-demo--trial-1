@@ -386,60 +386,83 @@ async function seedApplications(students, jobs) {
 
     const applications = [];
 
-    // Find john.doe@student.edu student
-    const johnDoe = students.find(student => student.email === 'john.doe@student.edu');
-    if (!johnDoe) {
-        console.log('⚠️ john.doe@student.edu not found, skipping applications');
-        return applications;
-    }
+    // Define comprehensive application scenarios for multiple students
+    // Using actual student emails: john.doe, jane.smith, rahul.sharma, priya.patel, michael.johnson, sarah.wilson, amit.kumar, sneha.reddy
+    const applicationScenarios = [
+        // John Doe - 4 applications with different statuses
+        { studentEmail: 'john.doe@student.edu', jobTitle: 'Software Engineer Intern', status: 'applied' },
+        { studentEmail: 'john.doe@student.edu', jobTitle: 'Full Stack Developer', status: 'shortlisted' },
+        { studentEmail: 'john.doe@student.edu', jobTitle: 'Data Scientist', status: 'rejected' },
+        { studentEmail: 'john.doe@student.edu', jobTitle: 'Frontend Developer', status: 'placed' },
 
-    // Find specific jobs for john.doe's applications
-    const targetJobs = [
-        jobs.find(job => job.title === 'Software Engineer Intern'),
-        jobs.find(job => job.title === 'Full Stack Developer'),
-        jobs.find(job => job.title === 'Data Scientist'),
-        jobs.find(job => job.title === 'Frontend Developer')
+        // Jane Smith - 3 applications
+        { studentEmail: 'jane.smith@student.edu', jobTitle: 'Software Engineer Intern', status: 'placed' },
+        { studentEmail: 'jane.smith@student.edu', jobTitle: 'Backend Engineer', status: 'shortlisted' },
+        { studentEmail: 'jane.smith@student.edu', jobTitle: 'DevOps Engineer', status: 'applied' },
+
+        // Rahul Sharma - 3 applications
+        { studentEmail: 'rahul.sharma@student.edu', jobTitle: 'Data Scientist', status: 'placed' },
+        { studentEmail: 'rahul.sharma@student.edu', jobTitle: 'Machine Learning Engineer', status: 'shortlisted' },
+        { studentEmail: 'rahul.sharma@student.edu', jobTitle: 'Full Stack Developer', status: 'rejected' },
+
+        // Priya Patel - 4 applications
+        { studentEmail: 'priya.patel@student.edu', jobTitle: 'Full Stack Developer', status: 'placed' },
+        { studentEmail: 'priya.patel@student.edu', jobTitle: 'Frontend Developer', status: 'shortlisted' },
+        { studentEmail: 'priya.patel@student.edu', jobTitle: 'Software Engineer Intern', status: 'applied' },
+        { studentEmail: 'priya.patel@student.edu', jobTitle: 'Backend Engineer', status: 'rejected' },
+
+        // Michael Johnson - 3 applications
+        { studentEmail: 'michael.johnson@student.edu', jobTitle: 'DevOps Engineer', status: 'placed' },
+        { studentEmail: 'michael.johnson@student.edu', jobTitle: 'Backend Engineer', status: 'shortlisted' },
+        { studentEmail: 'michael.johnson@student.edu', jobTitle: 'Software Engineer Intern', status: 'applied' },
+
+        // Sarah Wilson - 2 applications
+        { studentEmail: 'sarah.wilson@student.edu', jobTitle: 'Machine Learning Engineer', status: 'placed' },
+        { studentEmail: 'sarah.wilson@student.edu', jobTitle: 'Data Scientist', status: 'shortlisted' },
+
+        // Amit Kumar - 3 applications (no placements)
+        { studentEmail: 'amit.kumar@student.edu', jobTitle: 'Frontend Developer', status: 'shortlisted' },
+        { studentEmail: 'amit.kumar@student.edu', jobTitle: 'Software Engineer Intern', status: 'applied' },
+        { studentEmail: 'amit.kumar@student.edu', jobTitle: 'Full Stack Developer', status: 'rejected' },
+
+        // Sneha Reddy - 2 applications (no placements)
+        { studentEmail: 'sneha.reddy@student.edu', jobTitle: 'Backend Engineer', status: 'applied' },
+        { studentEmail: 'sneha.reddy@student.edu', jobTitle: 'DevOps Engineer', status: 'rejected' }
     ];
 
-    if (targetJobs.some(job => !job)) {
-        console.log('⚠️ Required jobs not found, skipping applications');
-        return applications;
-    }
-
-    // Create exactly 4 applications for john.doe@student.edu with simplified status progression
-    const applicationsData = [
-        {
-            student_id: johnDoe.id,
-            job_id: targetJobs[0].id, // Software Engineer Intern
-            status: 'applied' // Just applied, no further progress
-        },
-        {
-            student_id: johnDoe.id,
-            job_id: targetJobs[1].id, // Full Stack Developer
-            status: 'applied' // Applied, interview scheduled
-        },
-        {
-            student_id: johnDoe.id,
-            job_id: targetJobs[2].id, // Data Scientist
-            status: 'shortlisted' // Shortlisted, interview scheduled
-        },
-        {
-            student_id: johnDoe.id,
-            job_id: targetJobs[3].id, // Frontend Developer
-            status: 'placed' // Final status - successfully placed
+    // Create applications for each scenario
+    for (const scenario of applicationScenarios) {
+        const student = students.find(s => s.email === scenario.studentEmail);
+        if (!student) {
+            console.log(`⚠️ Student ${scenario.studentEmail} not found, skipping application`);
+            continue;
         }
-    ];
 
-    for (const appData of applicationsData) {
+        const job = jobs.find(j => j.title === scenario.jobTitle);
+        if (!job) {
+            console.log(`⚠️ Job ${scenario.jobTitle} not found, skipping application`);
+            continue;
+        }
+
+        // Create application
         const result = await db.query(`
             INSERT INTO applications (student_id, job_id, status) 
             VALUES ($1, $2, $3) RETURNING *
-        `, [appData.student_id, appData.job_id, appData.status]);
+        `, [student.id, job.id, scenario.status]);
+        
         applications.push(result.rows[0]);
+        console.log(`✅ Created application: ${scenario.studentEmail} → ${scenario.jobTitle} (${scenario.status})`);
     }
 
-    console.log(`✅ Created ${applications.length} applications for john.doe@student.edu`);
-    console.log(`🎯 ${jobs.length - 4} jobs remain available for manual testing`);
+    console.log(`✅ Created ${applications.length} applications across ${new Set(applicationScenarios.map(s => s.studentEmail)).size} students`);
+    
+    // Show status distribution
+    const statusCounts = applications.reduce((acc, app) => {
+        acc[app.status] = (acc[app.status] || 0) + 1;
+        return acc;
+    }, {});
+    console.log('📊 Application status distribution:', statusCounts);
+    
     return applications;
 }
 
@@ -449,71 +472,85 @@ async function seedInterviews(applications, companies) {
     const interviews = [];
     const modes = ['online', 'offline'];
 
-    // Find john.doe@student.edu applications
-    const johnDoeApps = applications.filter(app => {
-        // Get the student email to verify it's john.doe
-        return true; // We'll filter by checking the student_id matches john.doe later
-    });
+    // Define interview scenarios for shortlisted and placed applications
+    const interviewScenarios = [
+        // Scheduled interviews (future dates)
+        { studentEmail: 'john.doe@student.edu', jobTitle: 'Full Stack Developer', status: 'scheduled', mode: 'online', daysFromNow: 3, feedback: null },
+        { studentEmail: 'jane.smith@student.edu', jobTitle: 'Backend Engineer', status: 'scheduled', mode: 'offline', daysFromNow: 5, feedback: null },
+        { studentEmail: 'rahul.sharma@student.edu', jobTitle: 'Machine Learning Engineer', status: 'scheduled', mode: 'online', daysFromNow: 7, feedback: null },
+        { studentEmail: 'priya.patel@student.edu', jobTitle: 'Frontend Developer', status: 'scheduled', mode: 'offline', daysFromNow: 4, feedback: null },
+        { studentEmail: 'michael.johnson@student.edu', jobTitle: 'Backend Engineer', status: 'scheduled', mode: 'online', daysFromNow: 6, feedback: null },
+        { studentEmail: 'sarah.wilson@student.edu', jobTitle: 'Data Scientist', status: 'scheduled', mode: 'offline', daysFromNow: 8, feedback: null },
+        { studentEmail: 'amit.kumar@student.edu', jobTitle: 'Frontend Developer', status: 'scheduled', mode: 'online', daysFromNow: 2, feedback: null },
 
-    // Create interviews for 3 out of 4 john.doe applications
-    // Skip the first application (Software Engineer Intern) - no interview
-    const appsForInterviews = johnDoeApps.slice(1, 4); // Take applications 2, 3, 4
-
-    const interviewsData = [
-        {
-            app: appsForInterviews[0], // Full Stack Developer (reviewed)
-            scheduled_at: getFutureDate(5), // 5 days from now
-            mode: 'online',
-            status: 'scheduled',
-            feedback: null
-        },
-        {
-            app: appsForInterviews[1], // Data Scientist (round1_qualified)
-            scheduled_at: getFutureDate(8), // 8 days from now
-            mode: 'offline',
-            status: 'scheduled',
-            feedback: null
-        },
-        {
-            app: appsForInterviews[2], // Frontend Developer (placed)
-            scheduled_at: getFutureDate(1), // 1 day from now (but mark as completed)
-            mode: 'online',
-            status: 'completed',
-            feedback: 'Excellent technical skills and problem-solving approach. Strong candidate for the role. Recommended for placement.'
-        }
+        // Completed interviews (future dates but marked as completed) - for placed students
+        { studentEmail: 'john.doe@student.edu', jobTitle: 'Frontend Developer', status: 'completed', mode: 'online', daysFromNow: 1, feedback: 'Excellent technical skills and problem-solving approach. Strong candidate for the role. Recommended for placement.' },
+        { studentEmail: 'jane.smith@student.edu', jobTitle: 'Software Engineer Intern', status: 'completed', mode: 'offline', daysFromNow: 2, feedback: 'Good understanding of fundamentals. Shows potential for growth. Suitable for internship role.' },
+        { studentEmail: 'rahul.sharma@student.edu', jobTitle: 'Data Scientist', status: 'completed', mode: 'online', daysFromNow: 3, feedback: 'Outstanding analytical skills and machine learning knowledge. Perfect fit for the data science role.' },
+        { studentEmail: 'priya.patel@student.edu', jobTitle: 'Full Stack Developer', status: 'completed', mode: 'offline', daysFromNow: 4, feedback: 'Strong full-stack development skills. Great communication and problem-solving abilities.' },
+        { studentEmail: 'michael.johnson@student.edu', jobTitle: 'DevOps Engineer', status: 'completed', mode: 'online', daysFromNow: 5, feedback: 'Excellent DevOps knowledge and automation skills. Strong understanding of cloud platforms.' },
+        { studentEmail: 'sarah.wilson@student.edu', jobTitle: 'Machine Learning Engineer', status: 'completed', mode: 'offline', daysFromNow: 6, feedback: 'Exceptional ML expertise and research background. Highly recommended for the ML engineer position.' }
     ];
 
-    for (const interviewData of interviewsData) {
-        const app = interviewData.app;
+    // Create interviews for each scenario
+    for (const scenario of interviewScenarios) {
+        // Find the corresponding application
+        const application = applications.find(app => {
+            // We need to match by student email and job title
+            // Since we don't have direct access to student email in application object,
+            // we'll find it through the students array
+            return true; // We'll handle this in the loop below
+        });
+
+        // Get student and job info to find the right application
+        const studentsResult = await db.query('SELECT id, email FROM users WHERE email = $1', [scenario.studentEmail]);
+        if (studentsResult.rows.length === 0) continue;
+        
+        const student = studentsResult.rows[0];
+        const job = await db.query('SELECT id FROM jobs WHERE title = $1', [scenario.jobTitle]);
+        if (job.rows.length === 0) continue;
+
+        // Find the specific application
+        const app = applications.find(a => a.student_id === student.id && a.job_id === job.rows[0].id);
+        if (!app) continue;
+
+        // Only create interviews for shortlisted or placed applications
+        if (!['shortlisted', 'placed'].includes(app.status)) continue;
 
         // Get job info to find company
-        const jobResult = await db.query(
-            'SELECT company_id FROM jobs WHERE id = $1',
-            [app.job_id]
-        );
+        const jobResult = await db.query('SELECT company_id FROM jobs WHERE id = $1', [app.job_id]);
+        if (jobResult.rows.length === 0) continue;
 
-        if (jobResult.rows.length === 0) {
-            continue;
-        }
+        const company_id = jobResult.rows[0].company_id;
+        const scheduledDate = getFutureDate(scenario.daysFromNow);
 
-        const companyId = jobResult.rows[0].company_id;
-
+        // Create interview
         const result = await db.query(`
             INSERT INTO interviews (application_id, student_id, company_id, scheduled_at, mode, status, feedback) 
             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
         `, [
             app.id,
-            app.student_id,
-            companyId,
-            interviewData.scheduled_at,
-            interviewData.mode,
-            interviewData.status,
-            interviewData.feedback
+            student.id,
+            company_id,
+            scheduledDate,
+            scenario.mode,
+            scenario.status,
+            scenario.feedback
         ]);
+
         interviews.push(result.rows[0]);
+        console.log(`✅ Created interview: ${scenario.studentEmail} → ${scenario.jobTitle} (${scenario.status}, ${scenario.mode})`);
     }
 
-    console.log(`✅ Created ${interviews.length} interviews for john.doe@student.edu`);
+    console.log(`✅ Created ${interviews.length} interviews across multiple students`);
+    
+    // Show interview distribution
+    const interviewCounts = interviews.reduce((acc, interview) => {
+        acc[interview.status] = (acc[interview.status] || 0) + 1;
+        return acc;
+    }, {});
+    console.log('📊 Interview status distribution:', interviewCounts);
+    
     return interviews;
 }
 
@@ -522,41 +559,134 @@ async function seedPlacements(applications, jobs) {
 
     const placements = [];
 
-    // Create 1 placement for john.doe@student.edu from the Frontend Developer job
-    // This will be the job where the interview was completed successfully
-    const frontendDevApp = applications.find(app => {
-        // Find the application for Frontend Developer job
-        const job = jobs.find(j => j.id === app.job_id && j.title === 'Frontend Developer');
-        return job && app.status === 'placed';
-    });
+    // Get all students for placement assignments
+    const studentsResult = await db.query('SELECT id, email FROM users WHERE role = $1', ['student']);
+    const students = studentsResult.rows;
 
-    if (frontendDevApp) {
-        // Get job and company info
-        const jobResult = await db.query(
-            'SELECT id, company_id, title, package FROM jobs WHERE id = $1',
-            [frontendDevApp.job_id]
+    // Define placement scenarios with different salary ranges
+    const placementScenarios = [
+        {
+            studentEmail: 'john.doe@student.edu',
+            jobTitle: 'Frontend Developer',
+            package: 1500000, // ₹15L - 10-20L range
+            status: 'accepted'
+        },
+        {
+            studentEmail: 'jane.smith@student.edu',
+            jobTitle: 'Software Engineer Intern',
+            package: 400000, // ₹4L - 0-5L range
+            status: 'accepted'
+        },
+        {
+            studentEmail: 'rahul.sharma@student.edu',
+            jobTitle: 'Data Scientist',
+            package: 2200000, // ₹22L - 20+L range
+            status: 'accepted'
+        },
+        {
+            studentEmail: 'priya.patel@student.edu',
+            jobTitle: 'Full Stack Developer',
+            package: 800000, // ₹8L - 5-10L range
+            status: 'accepted'
+        },
+        {
+            studentEmail: 'michael.johnson@student.edu',
+            jobTitle: 'DevOps Engineer',
+            package: 1800000, // ₹18L - 10-20L range
+            status: 'accepted'
+        },
+        {
+            studentEmail: 'sarah.wilson@student.edu',
+            jobTitle: 'Machine Learning Engineer',
+            package: 2500000, // ₹25L - 20+L range
+            status: 'joined'
+        }
+    ];
+
+    // Create placements for each scenario
+    for (const scenario of placementScenarios) {
+        const student = students.find(s => s.email === scenario.studentEmail);
+        if (!student) {
+            console.log(`⚠️ Student ${scenario.studentEmail} not found, skipping placement`);
+            continue;
+        }
+
+        // Find the job
+        const job = jobs.find(j => j.title === scenario.jobTitle);
+        if (!job) {
+            console.log(`⚠️ Job ${scenario.jobTitle} not found, skipping placement`);
+            continue;
+        }
+
+        // Check if there's an application for this student-job combination
+        const application = applications.find(app => 
+            app.student_id === student.id && app.job_id === job.id
         );
 
-        if (jobResult.rows.length > 0) {
-            const job = jobResult.rows[0];
+        if (application) {
+            // Update application status to 'placed'
+            await db.query(
+                'UPDATE applications SET status = $1 WHERE id = $2',
+                ['placed', application.id]
+            );
 
-            // Create placement with job's original package for consistency
-            const result = await db.query(`
-                INSERT INTO placements (student_id, job_id, company_id, package, role, status) 
-                VALUES ($1, $2, $3, $4, $5, $6) RETURNING *
-            `, [
-                frontendDevApp.student_id,
-                job.id,
-                job.company_id,
-                job.package, // Use job's original package (₹15,00,000 LPA)
-                job.title,
-                'accepted' // Placement has been accepted
-            ]);
-            placements.push(result.rows[0]);
+            // Get job details for placement
+            const jobResult = await db.query(
+                'SELECT id, company_id, title FROM jobs WHERE id = $1',
+                [job.id]
+            );
+
+            if (jobResult.rows.length > 0) {
+                const jobData = jobResult.rows[0];
+
+                // Create placement record
+                const result = await db.query(`
+                    INSERT INTO placements (student_id, job_id, company_id, package, role, status) 
+                    VALUES ($1, $2, $3, $4, $5, $6) RETURNING *
+                `, [
+                    student.id,
+                    jobData.id,
+                    jobData.company_id,
+                    scenario.package,
+                    jobData.title,
+                    scenario.status
+                ]);
+                placements.push(result.rows[0]);
+                console.log(`✅ Created placement: ${scenario.studentEmail} → ${scenario.jobTitle} (₹${scenario.package/100000}L)`);
+            }
+        } else {
+            // Create application first, then placement
+            const appResult = await db.query(`
+                INSERT INTO applications (student_id, job_id, status) 
+                VALUES ($1, $2, $3) RETURNING *
+            `, [student.id, job.id, 'placed']);
+
+            const jobResult = await db.query(
+                'SELECT id, company_id, title FROM jobs WHERE id = $1',
+                [job.id]
+            );
+
+            if (jobResult.rows.length > 0) {
+                const jobData = jobResult.rows[0];
+
+                const result = await db.query(`
+                    INSERT INTO placements (student_id, job_id, company_id, package, role, status) 
+                    VALUES ($1, $2, $3, $4, $5, $6) RETURNING *
+                `, [
+                    student.id,
+                    jobData.id,
+                    jobData.company_id,
+                    scenario.package,
+                    jobData.title,
+                    scenario.status
+                ]);
+                placements.push(result.rows[0]);
+                console.log(`✅ Created placement: ${scenario.studentEmail} → ${scenario.jobTitle} (₹${scenario.package/100000}L)`);
+            }
         }
     }
 
-    console.log(`✅ Created ${placements.length} placement for john.doe@student.edu`);
+    console.log(`✅ Created ${placements.length} placements across different salary ranges`);
     return placements;
 }
 

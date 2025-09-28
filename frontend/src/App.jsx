@@ -13,6 +13,7 @@ import AccessDenied from './pages/AccessDenied'
 import AdminUsers from './pages/admin/AdminUsers'
 import AdminCompanies from './pages/admin/AdminCompanies'
 import AdminStudents from './pages/admin/AdminStudents'
+import AdminReports from './pages/admin/AdminReports'
 // Recruiter pages
 import JobsList from './pages/recruiter/JobsList'
 import PostJob from './pages/recruiter/PostJob'
@@ -179,10 +180,7 @@ const AppContent = () => {
           path="/admin/reports" 
           element={
             <RoleBasedRoute allowedRoles={['admin']}>
-              <div className="p-6 max-w-7xl mx-auto">
-                <h1 className="text-2xl font-bold">Reports & Analytics</h1>
-                <p className="text-gray-600 mt-2">View detailed reports and analytics</p>
-              </div>
+              <AdminReports />
             </RoleBasedRoute>
           } 
         />

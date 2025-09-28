@@ -55,6 +55,33 @@ export const authAPI = {
 }
 
 export const reportsAPI = {
+  // Admin Reports API
+  getSummaryStats: async () => {
+    const response = await api.get('/api/v1/admin/reports/summary')
+    return response.data
+  },
+
+  getApplicationsByCompany: async () => {
+    const response = await api.get('/api/v1/admin/reports/applications-by-company')
+    return response.data
+  },
+
+  getPackageDistribution: async () => {
+    const response = await api.get('/api/v1/admin/reports/package-distribution')
+    return response.data
+  },
+
+  getPlacementTrends: async () => {
+    const response = await api.get('/api/v1/admin/reports/placement-trends')
+    return response.data
+  },
+
+  getApplicationStatus: async () => {
+    const response = await api.get('/api/v1/admin/reports/application-status')
+    return response.data
+  },
+
+  // Legacy Reports API (for backward compatibility)
   getApplicationsReport: async () => {
     const response = await api.get('/api/v1/reports/applications')
     return response.data
@@ -268,5 +295,6 @@ export const adminAPI = {
     return response.data
   }
 }
+
 
 export default api
